@@ -5,7 +5,7 @@ namespace TimurTurdyev\SimpleSettings\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
-class SettingServiceProvider extends ServiceProvider
+class SimpleSettingsServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {

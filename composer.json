@@ -22,7 +22,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "TimurTurdyev\\SimpleSettings\\ServiceProvider"
+                "TimurTurdyev\\SimpleSettings\\Providers\\SettingServiceProvider"
             ]
         }
     }

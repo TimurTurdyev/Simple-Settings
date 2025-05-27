@@ -18,5 +18,12 @@
         "psr-4": {
             "TimurTurdyev\\SimpleSettings\\": "src/"
         }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "TimurTurdyev\\SimpleSettings\\ServiceProvider"
+            ]
+        }
     }
 }

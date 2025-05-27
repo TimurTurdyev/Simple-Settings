@@ -113,7 +113,3 @@ Schema::create(config('simple-settings.table_name', 'simple_settings'), function
 });
 
 ```
-
-## 📄 Лицензия
-
-MIT License

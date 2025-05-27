@@ -15,6 +15,9 @@ final class SettingStorage
         protected string $group = 'global',
     )
     {
+        if ($cacheKey = config('simple-settings.path_cache_key')) {
+            $this->cacheKey = $cacheKey;
+        }
     }
 
     public function get(string $key, bool|int|float|array|string|null|object $default = null, bool $fresh = false)

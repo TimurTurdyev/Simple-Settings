@@ -3,14 +3,9 @@
     "description": "A simple package for storing settings in laravel",
     "type": "library",
     "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "TimurTurdyev\\SimpleSettings\\": "src/"
-        }
-    },
     "authors": [
         {
-            "name": "tturdyev",
+            "name": "Timur Turdyev",
             "email": "borodatumur@gmail.com"
         }
     ],
@@ -18,5 +13,10 @@
         "php": "^8.2|^8.3|^8.4",
         "illuminate/database": "^12.0",
         "illuminate/support": "^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TimurTurdyev\\SimpleSettings\\": "src/"
+        }
     }
 }

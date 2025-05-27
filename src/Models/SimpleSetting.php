@@ -21,6 +21,11 @@ class SimpleSetting extends Model
         'updated_at' => 'datetime',
     ];
 
+    public function getTable(): string
+    {
+        return config('simple-settings.table_name', $this->table);
+    }
+
     #[Scope]
     public function group(Builder $query, string $name): Builder
     {

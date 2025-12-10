@@ -1,5 +1,5 @@
 {
-    "name": "timur-turdyev/simple-settings",
+    "name": "timurturdyev/simple-settings",
     "description": "A simple package for storing settings in laravel",
     "type": "library",
     "license": "MIT",

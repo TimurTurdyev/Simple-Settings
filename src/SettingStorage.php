@@ -5,9 +5,13 @@ namespace TimurTurdyev\SimpleSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface;
+use TimurTurdyev\SimpleSettings\Events\SettingDeleted;
+use TimurTurdyev\SimpleSettings\Events\SettingRetrieved;
+use TimurTurdyev\SimpleSettings\Events\SettingSaved;
 use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
 
-final class SettingStorage
+final class SettingStorage implements SettingStorageInterface
 {
     protected string $cacheKey = 'simple_settings';
 
@@ -20,9 +24,13 @@ final class SettingStorage
         }
     }
 
-    public function get(string $key, bool|int|float|array|string|null|object $default = null, bool $fresh = false)
+    public function get(string $key, mixed $default = null, bool $fresh = false): mixed
     {
-        return $this->all($fresh)->get($key, $default);
+        $value = $this->all($fresh)->get($key, $default);
+
+        event(new SettingRetrieved($key, $value, $this->group));
+
+        return $value;
     }
 
     public function all(bool $fresh = false): Collection
@@ -36,7 +44,7 @@ final class SettingStorage
         });
     }
 
-    public function set(array|string $key, bool|int|float|array|string|null|object $val = null): float|object|int|bool|array|string|null
+    public function set(string|array $key, mixed $val = null): mixed
     {
         if (is_array($key)) {
             foreach ($key as $name => $value) {
@@ -45,6 +53,8 @@ final class SettingStorage
 
             return true;
         }
+
+        $this->validate($key, $val);
 
         $setting = $this
             ->modelQuery()
@@ -63,6 +73,8 @@ final class SettingStorage
 
         $setting->save();
 
+        event(new SettingSaved($key, $val, $this->group));
+
         $this->flushCache();
 
         return $val;
@@ -78,8 +90,12 @@ final class SettingStorage
         return $this->all()->has($key);
     }
 
-    public function remove(string $key = null)
+    public function remove(string $key = null): int
     {
+        if (!is_null($key)) {
+            event(new SettingDeleted($key, $this->group));
+        }
+
         $deleted = $this->modelQuery()
             ->when(!is_null($key), static fn($query) => $query->where('name', $key))
             ->delete();
@@ -112,6 +128,11 @@ final class SettingStorage
         return $this;
     }
 
+    public function forGroup(string $group): self
+    {
+        return new self($group);
+    }
+
     private static function castValue(bool|int|float|array|string|null|object $val, string $castTo): bool|int|float|array|string|null|object
     {
         return match ($castTo) {
@@ -137,5 +158,24 @@ final class SettingStorage
             'object' => (string)json_encode($val),
             default => (string)$val,
         };
+    }
+
+    private function validate(string $key, mixed $val): void
+    {
+        $rules = config('simple-settings.validation_rules', []);
+
+        if (isset($rules[$key])) {
+            $validator = \Illuminate\Support\Facades\Validator::make(
+                ['value' => $val],
+                ['value' => $rules[$key]]
+            );
+
+            if ($validator->fails()) {
+                throw new \InvalidArgumentException(
+                    "Validation failed for setting [{$key}]: " .
+                    implode(', ', $validator->errors()->all())
+                );
+            }
+        }
     }
 }

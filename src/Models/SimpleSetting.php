@@ -26,9 +26,27 @@ class SimpleSetting extends Model
         return config('simple-settings.table_name', $this->table);
     }
 
+    public function getValueAttribute(): mixed
+    {
+        return $this->castValue($this->attributes['val'], $this->attributes['type']);
+    }
+
     #[Scope]
     public function group(Builder $query, string $name): Builder
     {
         return $query->where('group', $name);
+    }
+
+    private function castValue(string|null $val, string $castTo): mixed
+    {
+        return match ($castTo) {
+            'integer' => (int)$val,
+            'boolean' => (bool)$val,
+            'array' => json_decode($val, true),
+            'double' => (float)$val,
+            'object' => json_decode($val, false),
+            'null' => null,
+            default => (string)$val,
+        };
     }
 }

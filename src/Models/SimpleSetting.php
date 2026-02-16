@@ -5,9 +5,12 @@ namespace TimurTurdyev\SimpleSettings\Models;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use TimurTurdyev\SimpleSettings\Concerns\CastsValue;
 
 class SimpleSetting extends Model
 {
+    use CastsValue;
+
     protected $table = 'simple_settings';
     protected $guarded = ['id'];
     protected $fillable = ['group', 'name', 'val', 'type', 'created_at', 'updated_at'];
@@ -28,25 +31,12 @@ class SimpleSetting extends Model
 
     public function getValueAttribute(): mixed
     {
-        return $this->castValue($this->attributes['val'], $this->attributes['type']);
+        return self::castValue($this->attributes['val'], $this->attributes['type']);
     }
 
     #[Scope]
     public function group(Builder $query, string $name): Builder
     {
         return $query->where('group', $name);
-    }
-
-    private function castValue(string|null $val, string $castTo): mixed
-    {
-        return match ($castTo) {
-            'integer' => (int)$val,
-            'boolean' => (bool)$val,
-            'array' => json_decode($val, true),
-            'double' => (float)$val,
-            'object' => json_decode($val, false),
-            'null' => null,
-            default => (string)$val,
-        };
     }
 }

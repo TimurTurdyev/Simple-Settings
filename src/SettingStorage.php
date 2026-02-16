@@ -5,6 +5,7 @@ namespace TimurTurdyev\SimpleSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use TimurTurdyev\SimpleSettings\Concerns\CastsValue;
 use TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface;
 use TimurTurdyev\SimpleSettings\Events\SettingDeleted;
 use TimurTurdyev\SimpleSettings\Events\SettingRetrieved;
@@ -13,6 +14,8 @@ use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
 
 final class SettingStorage implements SettingStorageInterface
 {
+    use CastsValue;
+
     protected string $cacheKey = 'simple_settings';
 
     public function __construct(
@@ -66,7 +69,7 @@ final class SettingStorage implements SettingStorageInterface
 
         $setting->group = $this->group;
         $setting->name = $key;
-        $setting->val = $this->valueToString($val, $type);
+        $setting->val = self::valueToString($val, $type);
         $setting->type = $type;
 
         $setting->updateTimestamps();
@@ -110,10 +113,11 @@ final class SettingStorage implements SettingStorageInterface
         return $this->modelQuery()
             ->get(['val', 'name', 'type'])
             ->map(function (SimpleSetting $setting) {
-                $item = $setting->toArray();
-                $item['val'] = $this->castValue($item['val'], $item['type']);
-                return $item;
-            })->mapWithKeys(static fn($item) => [$item['name'] => $item['val']]);
+                return [
+                    'name' => $setting->name,
+                    'val' => self::castValue($setting->val, $setting->type),
+                ];
+            })->mapWithKeys(fn($item) => [$item['name'] => $item['val']]);
     }
 
     private function modelQuery(): Builder
@@ -133,31 +137,9 @@ final class SettingStorage implements SettingStorageInterface
         return new self($group);
     }
 
-    private static function castValue(bool|int|float|array|string|null|object $val, string $castTo): bool|int|float|array|string|null|object
-    {
-        return match ($castTo) {
-            'integer' => (int)$val,
-            'boolean' => (bool)$val,
-            'array' => json_decode($val, true),
-            'double' => (float)$val,
-            'object' => json_decode($val, false),
-            'null' => null,
-            default => (string)$val,
-        };
-    }
-
     private function getCacheKey(): string
     {
         return $this->cacheKey . '.' . $this->group;
-    }
-
-    private function valueToString(bool|int|float|array|string|null|object $val, string $type): string
-    {
-        return match ($type) {
-            'array' => (string)json_encode($val, true),
-            'object' => (string)json_encode($val),
-            default => (string)$val,
-        };
     }
 
     private function validate(string $key, mixed $val): void

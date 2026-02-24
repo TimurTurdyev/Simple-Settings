@@ -21,12 +21,31 @@ final class SettingStorage implements SettingStorageInterface
 
     public function __construct(
         protected string $group = 'global',
-    )
-    {
+    ) {
         if ($cacheKey = config('simple-settings.path_cache_key')) {
             $this->cacheKey = $cacheKey;
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Group selection
+    // -------------------------------------------------------------------------
+
+    public function group(string $group): self
+    {
+        $this->group = $group;
+
+        return $this;
+    }
+
+    public function forGroup(string $group): self
+    {
+        return new self($group);
+    }
+
+    // -------------------------------------------------------------------------
+    // Read
+    // -------------------------------------------------------------------------
 
     public function get(string $key, mixed $default = null, bool $fresh = false): mixed
     {
@@ -48,6 +67,15 @@ final class SettingStorage implements SettingStorageInterface
         });
     }
 
+    public function has(string $key): bool
+    {
+        return $this->all()->has($key);
+    }
+
+    // -------------------------------------------------------------------------
+    // Write
+    // -------------------------------------------------------------------------
+
     public function set(string|array $key, mixed $val = null): mixed
     {
         if (is_array($key)) {
@@ -61,16 +89,6 @@ final class SettingStorage implements SettingStorageInterface
         $this->flushCache();
 
         return is_array($key) ? true : $val;
-    }
-
-    public function flushCache(): bool
-    {
-        return Cache::forget($this->getCacheKey());
-    }
-
-    public function has(string $key): bool
-    {
-        return $this->all()->has($key);
     }
 
     public function remove(?string $key = null): int
@@ -88,57 +106,35 @@ final class SettingStorage implements SettingStorageInterface
         return $deleted;
     }
 
+    // -------------------------------------------------------------------------
+    // Cache
+    // -------------------------------------------------------------------------
+
+    public function flushCache(): bool
+    {
+        return Cache::forget($this->getCacheKey());
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
     private function persistSetting(string $key, mixed $val): void
     {
         $this->validate($key, $val);
 
-        $setting = $this
-            ->modelQuery()
-            ->firstOrNew([
-                'name' => $key,
-            ]);
+        $setting = $this->modelQuery()->firstOrNew(['name' => $key]);
 
         $type = strtolower(gettype($val));
 
         $setting->group = $this->group;
-        $setting->name = $key;
-        $setting->val = self::valueToString($val, $type);
-        $setting->type = $type;
+        $setting->name  = $key;
+        $setting->val   = self::valueToString($val, $type);
+        $setting->type  = $type;
 
         $setting->save();
 
         event(new SettingSaved($key, $val, $this->group));
-    }
-
-    private function getMapWithKeys(): Collection
-    {
-        return $this->modelQuery()
-            ->get(['val', 'name', 'type'])
-            ->mapWithKeys(fn(SimpleSetting $setting) => [
-                $setting->name => self::castValue($setting->val, $setting->type),
-            ]);
-    }
-
-    private function modelQuery(): Builder
-    {
-        return SimpleSetting::query()->group($this->group);
-    }
-
-    public function group(string $group): self
-    {
-        $this->group = $group;
-
-        return $this;
-    }
-
-    public function forGroup(string $group): self
-    {
-        return new self($group);
-    }
-
-    private function getCacheKey(): string
-    {
-        return $this->cacheKey . '.' . $this->group;
     }
 
     private function validate(string $key, mixed $val): void
@@ -158,5 +154,24 @@ final class SettingStorage implements SettingStorageInterface
                 );
             }
         }
+    }
+
+    private function getMapWithKeys(): Collection
+    {
+        return $this->modelQuery()
+            ->get(['val', 'name', 'type'])
+            ->mapWithKeys(fn(SimpleSetting $setting) => [
+                $setting->name => self::castValue($setting->val, $setting->type),
+            ]);
+    }
+
+    private function modelQuery(): Builder
+    {
+        return SimpleSetting::query()->group($this->group);
+    }
+
+    private function getCacheKey(): string
+    {
+        return $this->cacheKey . '.' . $this->group;
     }
 }

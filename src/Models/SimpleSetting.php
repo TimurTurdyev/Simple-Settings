@@ -24,14 +24,14 @@ class SimpleSetting extends Model
         return config('simple-settings.table_name', $this->table);
     }
 
-    public function getValueAttribute(): mixed
-    {
-        return self::castValue($this->attributes['val'], $this->attributes['type']);
-    }
-
     #[Scope]
     public function group(Builder $query, string $name): Builder
     {
         return $query->where('group', $name);
+    }
+
+    public function getValueAttribute(): mixed
+    {
+        return self::castValue($this->attributes['val'], $this->attributes['type']);
     }
 }

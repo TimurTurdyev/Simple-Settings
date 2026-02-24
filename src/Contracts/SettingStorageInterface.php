@@ -12,7 +12,7 @@ interface SettingStorageInterface
 
     public function has(string $key): bool;
 
-    public function remove(string $key = null): int;
+    public function remove(?string $key = null): int;
 
     public function flushCache(): bool;
 

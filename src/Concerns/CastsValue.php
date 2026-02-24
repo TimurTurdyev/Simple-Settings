@@ -20,8 +20,7 @@ trait CastsValue
     public static function valueToString(mixed $val, string $type): string
     {
         return match ($type) {
-            'array' => json_encode($val, JSON_THROW_ON_ERROR),
-            'object' => json_encode($val, JSON_THROW_ON_ERROR),
+            'array', 'object' => json_encode($val, JSON_THROW_ON_ERROR),
             default => (string)$val,
         };
     }

@@ -1,184 +1,203 @@
-# Simple-Settings для Laravel
+# Simple Settings for Laravel
 
-Легкий менеджер настроек для Laravel с поддержкой групп, кэшированием и автоматическим преобразованием типов.
+Lightweight settings manager for Laravel with group namespacing, caching, and automatic type casting.
 
-## Установка
+## Requirements
+
+- PHP 8.2+
+- Laravel 12.x
+
+## Installation
 
 ```bash
 composer require timurturdyev/simple-settings
 ```
 
-Опубликуйте конфиг и миграцию:
+Publish the config and migration:
 
 ```bash
 php artisan vendor:publish --provider="TimurTurdyev\SimpleSettings\Providers\SettingServiceProvider"
 ```
 
-Запустите миграцию:
+Run the migration:
 
 ```bash
 php artisan migrate
 ```
 
-## Использование
+## Usage
 
-### Через Facade
+### Facade
 
 ```php
 use TimurTurdyev\SimpleSettings\Facades\Setting;
 
-// Получить настройку
-$value = Setting::get('key', 'default');
+Setting::set('site_name', 'My App');
 
-// Установить настройку
-Setting::set('key', 'value');
+$name = Setting::get('site_name');           // 'My App'
+$name = Setting::get('missing', 'default'); // 'default'
 
-// Проверить существование
-if (Setting::has('key')) {
-    // ...
-}
-
-// Удалить настройку
-Setting::remove('key');
-
-// Получить все настройки
-$all = Setting::all();
-
-// Очистить кэш
+Setting::has('site_name'); // true
+Setting::remove('site_name');
+Setting::all();       // Collection of all settings in current group
 Setting::flushCache();
 ```
 
-### Через сервис-контейнер
+### Service container
 
 ```php
 use TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface;
 
 $settings = app(SettingStorageInterface::class);
-$settings->set('key', 'value');
+$settings->set('site_name', 'My App');
 ```
 
-### Использование групп
+## Groups
+
+Settings are namespaced into groups. The default group is `global`.
 
 ```php
-// Через forGroup() - возвращает новый экземпляр
-$emailSettings = Setting::forGroup('email');
-$smtpHost = $emailSettings->get('smtp_host');
+// forGroup() returns a new isolated instance
+$email = Setting::forGroup('email');
+$email->set('host', 'smtp.example.com');
+$email->get('host'); // 'smtp.example.com'
 
-// Через group() - модифицирует текущий экземпляр
-Setting::group('email')->get('smtp_host');
+Setting::get('host'); // null — different group
+
+// group() mutates the current instance
+Setting::group('email')->get('host');
 ```
 
-### Поддерживаемые типы данных
+## Type casting
 
-Пакет автоматически определяет и приводит типы:
+Types are detected automatically and restored on read:
 
 ```php
-Setting::set('count', 42);           // integer
+Setting::set('count', 42);            // integer
+Setting::set('price', 9.99);          // float
 Setting::set('enabled', true);        // boolean
-Setting::set('options', ['a', 'b']);  // array (сохраняется как JSON)
+Setting::set('tags', ['a', 'b']);     // array  (stored as JSON)
+Setting::set('key', null);            // null
 ```
 
-### Массив настроек
+## Bulk set
 
 ```php
 Setting::set([
-    'site_name' => 'My Site',
-    'site_url' => 'https://example.com',
+    'site_name' => 'My App',
+    'site_url'  => 'https://example.com',
+    'per_page'  => 15,
 ]);
 ```
 
-### Кэширование
+Cache is flushed once after all values are written.
 
-Настройки кэшируются по умолчанию. Чтобы получить значение напрямую из БД:
+## Bypass cache
 
 ```php
-$value = Setting::get('key', null, true); // fresh из БД
+$value = Setting::get('key', null, fresh: true);
+$all   = Setting::all(fresh: true);
 ```
 
-## Artisan команды
+## Artisan commands
 
 ```bash
-# Получить настройку
-php artisan setting:get key --group=global
+# Get a setting
+php artisan setting:get site_name
+php artisan setting:get host --group=email
+php artisan setting:get host --group=email --fresh
 
-# Установить настройку
-php artisan setting:set key value --group=global
+# Set a setting (type is inferred automatically)
+php artisan setting:set site_name "My App"
+php artisan setting:set enabled true
+php artisan setting:set per_page 15
+php artisan setting:set tags '["a","b"]'
+php artisan setting:set host smtp.example.com --group=email
 
-# Список всех настроек
+# List settings
 php artisan setting:list
 php artisan setting:list --group=email
 
-# Очистить кэш
+# Clear cache
 php artisan setting:clear
 php artisan setting:clear --group=email
 
-# Удалить настройку
-php artisan setting:delete key --group=global
+# Delete a setting
+php artisan setting:delete site_name
+php artisan setting:delete host --group=email
+
+# Delete all settings in a group
+php artisan setting:delete --group=email
 ```
 
-## События
+## Events
 
-- `SettingRetrieved` - при получении настройки
-- `SettingSaved` - при сохранении настройки
-- `SettingDeleted` - при удалении настройки
+| Event | Fired when |
+|-------|-----------|
+| `SettingRetrieved` | `get()` is called |
+| `SettingSaved` | `set()` writes a value |
+| `SettingDeleted` | `remove()` deletes a specific key |
 
 ```php
 use TimurTurdyev\SimpleSettings\Events\SettingSaved;
+use Illuminate\Support\Facades\Event;
 
-Event::listen(SettingSaved::class, function ($event) {
+Event::listen(SettingSaved::class, function (SettingSaved $event) {
     // $event->key
     // $event->value
     // $event->group
 });
 ```
 
-## Валидация
+## Validation
 
-Добавьте правила валидации в `config/simple-settings.php`:
+Add validation rules to `config/simple-settings.php`:
 
 ```php
 'validation_rules' => [
-    'email' => 'email',
-    'count' => 'integer|min:0',
+    'email'   => 'email',
+    'per_page' => 'integer|min:1|max:200',
     'enabled' => 'boolean',
 ],
 ```
 
-## Конфигурация
+`set()` will throw `InvalidArgumentException` if a rule fails.
+
+## Configuration
 
 ```php
 // config/simple-settings.php
 return [
-    'table_name' => 'simple_settings',      // Название таблицы
-    'path_cache_key' => 'simple_settings', // Префикс ключей кэша
-    'validation_rules' => [],               // Правила валидации
+    'table_name'       => 'simple_settings',
+    'path_cache_key'   => 'simple_settings',
+    'validation_rules' => [],
 ];
 ```
 
-## API
+## Database schema
 
-| Метод                  | Описание                           |
-|------------------------|------------------------------------|
-| `group(string $name)` | Выбор группы настроек              |
-| `forGroup(string $name)` | Создать экземпляр для группы    |
-| `get(string $key)`     | Получить значение параметра       |
-| `set($key, $value)`   | Установить значение                |
-| `all()`                | Все настройки группы               |
-| `has(string $key)`     | Проверка существования параметра   |
-| `remove()`             | Удаление параметра/всей группы    |
-| `flushCache()`         | Очистка кэша группы                |
-
-## Структура БД
-
-```php 
-Schema::create(config('simple-settings.table_name', 'simple_settings'), function (Blueprint $table) {
-    $table->id();
-    $table->string('group');    // Группа настроек
-    $table->string('name');     // Ключ параметра
-    $table->text('val');        // Значение (сериализованное)
-    $table->char('type', 20);  // Тип данных (string, array и т.д.)
-    $table->timestamps();
-    
-    $table->unique(['group', 'name']);
-});
 ```
+simple_settings
+├── id
+├── group   string
+├── name    string
+├── val     text
+├── type    char(20)
+├── created_at
+└── updated_at
+
+UNIQUE (group, name)
+```
+
+## API reference
+
+| Method | Description |
+|--------|-------------|
+| `get(string $key, mixed $default = null, bool $fresh = false)` | Get a setting value |
+| `set(string\|array $key, mixed $val = null)` | Set one or multiple values |
+| `has(string $key)` | Check if a key exists |
+| `remove(?string $key = null)` | Delete a key, or all keys in the group if null |
+| `all(bool $fresh = false)` | Get all settings in the group as a Collection |
+| `flushCache()` | Clear the cache for the current group |
+| `group(string $group)` | Switch group on the current instance |
+| `forGroup(string $group)` | Return a new instance scoped to a group |

@@ -12,14 +12,9 @@ class SimpleSetting extends Model
     use CastsValue;
 
     protected $table = 'simple_settings';
-    protected $guarded = ['id'];
     protected $fillable = ['group', 'name', 'val', 'type', 'created_at', 'updated_at'];
 
     protected $casts = [
-        'group' => 'string',
-        'name' => 'string',
-        'val' => 'string',
-        'type' => 'string',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

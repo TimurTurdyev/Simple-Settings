@@ -2,10 +2,9 @@
 
 namespace TimurTurdyev\SimpleSettings\Console\Commands;
 
-use Illuminate\Console\Command;
 use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
 
-class SettingListCommand extends Command
+class SettingListCommand extends BaseCommand
 {
     protected $signature = 'setting:list {--g|group= : Filter by group}';
 

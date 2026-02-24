@@ -5,6 +5,7 @@ namespace TimurTurdyev\SimpleSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Validator;
 use TimurTurdyev\SimpleSettings\Concerns\CastsValue;
 use TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface;
 use TimurTurdyev\SimpleSettings\Events\SettingDeleted;
@@ -51,12 +52,44 @@ final class SettingStorage implements SettingStorageInterface
     {
         if (is_array($key)) {
             foreach ($key as $name => $value) {
-                $this->set($name, $value);
+                $this->persistSetting($name, $value);
             }
-
-            return true;
+        } else {
+            $this->persistSetting($key, $val);
         }
 
+        $this->flushCache();
+
+        return is_array($key) ? true : $val;
+    }
+
+    public function flushCache(): bool
+    {
+        return Cache::forget($this->getCacheKey());
+    }
+
+    public function has(string $key): bool
+    {
+        return $this->all()->has($key);
+    }
+
+    public function remove(?string $key = null): int
+    {
+        $deleted = $this->modelQuery()
+            ->when(!is_null($key), static fn($query) => $query->where('name', $key))
+            ->delete();
+
+        if (!is_null($key)) {
+            event(new SettingDeleted($key, $this->group));
+        }
+
+        $this->flushCache();
+
+        return $deleted;
+    }
+
+    private function persistSetting(string $key, mixed $val): void
+    {
         $this->validate($key, $val);
 
         $setting = $this
@@ -72,52 +105,18 @@ final class SettingStorage implements SettingStorageInterface
         $setting->val = self::valueToString($val, $type);
         $setting->type = $type;
 
-        $setting->updateTimestamps();
-
         $setting->save();
 
         event(new SettingSaved($key, $val, $this->group));
-
-        $this->flushCache();
-
-        return $val;
-    }
-
-    public function flushCache(): bool
-    {
-        return Cache::forget($this->getCacheKey());
-    }
-
-    public function has(string $key): bool
-    {
-        return $this->all()->has($key);
-    }
-
-    public function remove(string $key = null): int
-    {
-        if (!is_null($key)) {
-            event(new SettingDeleted($key, $this->group));
-        }
-
-        $deleted = $this->modelQuery()
-            ->when(!is_null($key), static fn($query) => $query->where('name', $key))
-            ->delete();
-
-        $this->flushCache();
-
-        return $deleted;
     }
 
     private function getMapWithKeys(): Collection
     {
         return $this->modelQuery()
             ->get(['val', 'name', 'type'])
-            ->map(function (SimpleSetting $setting) {
-                return [
-                    'name' => $setting->name,
-                    'val' => self::castValue($setting->val, $setting->type),
-                ];
-            })->mapWithKeys(fn($item) => [$item['name'] => $item['val']]);
+            ->mapWithKeys(fn(SimpleSetting $setting) => [
+                $setting->name => self::castValue($setting->val, $setting->type),
+            ]);
     }
 
     private function modelQuery(): Builder
@@ -147,7 +146,7 @@ final class SettingStorage implements SettingStorageInterface
         $rules = config('simple-settings.validation_rules', []);
 
         if (isset($rules[$key])) {
-            $validator = \Illuminate\Support\Facades\Validator::make(
+            $validator = Validator::make(
                 ['value' => $val],
                 ['value' => $rules[$key]]
             );

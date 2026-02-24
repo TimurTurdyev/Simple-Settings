@@ -2,9 +2,7 @@
 
 namespace TimurTurdyev\SimpleSettings\Console\Commands;
 
-use Illuminate\Console\Command;
-
-class SettingDeleteCommand extends Command
+class SettingDeleteCommand extends BaseCommand
 {
     protected $signature = 'setting:delete {key? : The setting key to delete (leave empty to delete all in group)} {--g|group=global : The setting group}';
 
@@ -15,10 +13,7 @@ class SettingDeleteCommand extends Command
         $key = $this->argument('key');
         $group = $this->option('group');
 
-        $setting = app(\TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface::class)
-            ->forGroup($group);
-
-        $deleted = $setting->remove($key);
+        $deleted = $this->storage($group)->remove($key);
 
         if ($deleted > 0) {
             $keyDisplay = $key ?? "all settings in group [{$group}]";

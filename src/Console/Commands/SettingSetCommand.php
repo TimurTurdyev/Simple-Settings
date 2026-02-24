@@ -2,9 +2,7 @@
 
 namespace TimurTurdyev\SimpleSettings\Console\Commands;
 
-use Illuminate\Console\Command;
-
-class SettingSetCommand extends Command
+class SettingSetCommand extends BaseCommand
 {
     protected $signature = 'setting:set {key : The setting key} {value : The setting value} {--g|group=global : The setting group}';
 
@@ -16,12 +14,14 @@ class SettingSetCommand extends Command
         $value = $this->argument('value');
         $group = $this->option('group');
 
-        $value = $this->parseValue($value);
+        try {
+            $value = $this->parseValue($value);
+        } catch (\InvalidArgumentException $e) {
+            $this->error($e->getMessage());
+            return self::FAILURE;
+        }
 
-        $setting = app(\TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface::class)
-            ->forGroup($group);
-
-        $setting->set($key, $value);
+        $this->storage($group)->set($key, $value);
 
         $this->info("Setting [{$key}] in group [{$group}] has been set.");
 
@@ -47,7 +47,13 @@ class SettingSetCommand extends Command
         }
 
         if (str_starts_with($value, '[') || str_starts_with($value, '{')) {
-            return json_decode($value, true);
+            $decoded = json_decode($value, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \InvalidArgumentException('Invalid JSON: ' . json_last_error_msg());
+            }
+
+            return $decoded;
         }
 
         return $value;

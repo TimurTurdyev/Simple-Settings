@@ -2,9 +2,9 @@
 
 namespace TimurTurdyev\SimpleSettings\Console\Commands;
 
-use Illuminate\Console\Command;
+use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
 
-class SettingClearCommand extends Command
+class SettingClearCommand extends BaseCommand
 {
     protected $signature = 'setting:clear {--g|group= : Clear cache for specific group}';
 
@@ -15,22 +15,11 @@ class SettingClearCommand extends Command
         $group = $this->option('group');
 
         if ($group) {
-            $setting = app(\TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface::class)
-                ->forGroup($group);
-
-            $setting->flushCache();
-
+            $this->storage($group)->flushCache();
             $this->info("Cache for group [{$group}] has been cleared.");
         } else {
-            $setting = app(\TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface::class);
-
-            $groups = \TimurTurdyev\SimpleSettings\Models\SimpleSetting::query()
-                ->distinct()
-                ->pluck('group');
-
-            foreach ($groups as $g) {
-                $setting->forGroup($g)->flushCache();
-            }
+            SimpleSetting::query()->distinct()->pluck('group')
+                ->each(fn($g) => $this->storage($g)->flushCache());
 
             $this->info('All settings cache has been cleared.');
         }

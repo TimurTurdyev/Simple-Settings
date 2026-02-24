@@ -10,7 +10,7 @@ use TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface;
  * @method static \Illuminate\Support\Collection all(bool $fresh = false)
  * @method static mixed set(string|array $key, mixed $val = null)
  * @method static bool has(string $key)
- * @method static int remove(string $key = null)
+ * @method static int remove(?string $key = null)
  * @method static bool flushCache()
  * @method static self group(string $group)
  * @method static self forGroup(string $group)

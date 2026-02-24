@@ -19,4 +19,8 @@ interface SettingStorageInterface
     public function group(string $group): self;
 
     public function forGroup(string $group): self;
+
+    public function withEvents(): self;
+
+    public function withoutEvents(): self;
 }

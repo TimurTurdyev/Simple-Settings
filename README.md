@@ -140,6 +140,29 @@ php artisan setting:delete --group=email
 
 ## События
 
+По умолчанию события **отключены**. Включить можно двумя способами:
+
+**Через конфиг** (глобально для всего приложения):
+```php
+// config/simple-settings.php
+'events' => true,
+```
+
+**Через метод** (точечно для конкретного вызова):
+```php
+Setting::withEvents()->set('key', 'value');
+Setting::withEvents()->get('key');
+Setting::withEvents()->remove('key');
+
+// Отключить явно, даже если в конфиге включено:
+Setting::withoutEvents()->set('key', 'value');
+
+// Работает в связке с группами:
+Setting::forGroup('email')->withEvents()->set('host', 'smtp.example.com');
+```
+
+`withEvents()` и `withoutEvents()` возвращают новый экземпляр — текущий не изменяется.
+
 | Событие | Когда срабатывает |
 |---------|------------------|
 | `SettingRetrieved` | при вызове `get()` |
@@ -208,6 +231,8 @@ PRIMARY KEY (group, name)
 | `flushCache()` | Сбросить кэш текущей группы |
 | `group(string $group)` | Переключить группу у текущего экземпляра |
 | `forGroup(string $group)` | Вернуть новый экземпляр для указанной группы |
+| `withEvents()` | Вернуть новый экземпляр с включёнными событиями |
+| `withoutEvents()` | Вернуть новый экземпляр с отключёнными событиями |
 
 ---
 

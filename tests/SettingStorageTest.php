@@ -2,6 +2,10 @@
 
 namespace TimurTurdyev\SimpleSettings\Tests;
 
+use Illuminate\Support\Facades\Event;
+use TimurTurdyev\SimpleSettings\Events\SettingDeleted;
+use TimurTurdyev\SimpleSettings\Events\SettingRetrieved;
+use TimurTurdyev\SimpleSettings\Events\SettingSaved;
 use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
 use TimurTurdyev\SimpleSettings\SettingStorage;
 
@@ -184,14 +188,79 @@ class SettingStorageTest extends TestCase
     public function test_flush_cache_clears_cached_settings(): void
     {
         $storage = new SettingStorage('test');
-        
+
         $storage->set('key', 'value');
         $this->assertEquals('value', $storage->get('key'));
-        
+
         $storage->flushCache();
-        
+
         SimpleSetting::where('name', 'key')->update(['val' => 'new_value']);
-        
+
         $this->assertEquals('new_value', $storage->get('key'));
+    }
+
+    public function test_events_are_disabled_by_default(): void
+    {
+        Event::fake();
+
+        $storage = new SettingStorage('test');
+        $storage->set('key', 'value');
+        $storage->get('key');
+        $storage->remove('key');
+
+        Event::assertNotDispatched(SettingSaved::class);
+        Event::assertNotDispatched(SettingRetrieved::class);
+        Event::assertNotDispatched(SettingDeleted::class);
+    }
+
+    public function test_with_events_enables_event_dispatching(): void
+    {
+        Event::fake();
+
+        $storage = (new SettingStorage('test'))->withEvents();
+        $storage->set('key', 'value');
+        $storage->get('key');
+        $storage->remove('key');
+
+        Event::assertDispatched(SettingSaved::class, fn($e) => $e->key === 'key' && $e->group === 'test');
+        Event::assertDispatched(SettingRetrieved::class, fn($e) => $e->key === 'key' && $e->group === 'test');
+        Event::assertDispatched(SettingDeleted::class, fn($e) => $e->key === 'key' && $e->group === 'test');
+    }
+
+    public function test_without_events_disables_event_dispatching(): void
+    {
+        Event::fake();
+
+        $storage = (new SettingStorage('test', true))->withoutEvents();
+        $storage->set('key', 'value');
+        $storage->get('key');
+        $storage->remove('key');
+
+        Event::assertNotDispatched(SettingSaved::class);
+        Event::assertNotDispatched(SettingRetrieved::class);
+        Event::assertNotDispatched(SettingDeleted::class);
+    }
+
+    public function test_events_enabled_via_config(): void
+    {
+        Event::fake();
+
+        config(['simple-settings.events' => true]);
+
+        $storage = new SettingStorage('test');
+        $storage->set('key', 'value');
+
+        Event::assertDispatched(SettingSaved::class);
+    }
+
+    public function test_for_group_inherits_events_state(): void
+    {
+        Event::fake();
+
+        $storage = (new SettingStorage('global'))->withEvents();
+        $emailStorage = $storage->forGroup('email');
+        $emailStorage->set('host', 'smtp.example.com');
+
+        Event::assertDispatched(SettingSaved::class, fn($e) => $e->group === 'email');
     }
 }

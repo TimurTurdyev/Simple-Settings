@@ -18,13 +18,17 @@ final class SettingStorage implements SettingStorageInterface
     use CastsValue;
 
     protected string $cacheKey = 'simple_settings';
+    protected bool $fireEvents;
 
     public function __construct(
         protected string $group = 'global',
+        ?bool $fireEvents = null,
     ) {
         if ($cacheKey = config('simple-settings.path_cache_key')) {
             $this->cacheKey = $cacheKey;
         }
+
+        $this->fireEvents = $fireEvents ?? (bool) config('simple-settings.events', false);
     }
 
     // -------------------------------------------------------------------------
@@ -40,7 +44,27 @@ final class SettingStorage implements SettingStorageInterface
 
     public function forGroup(string $group): self
     {
-        return new self($group);
+        return new self($group, $this->fireEvents);
+    }
+
+    // -------------------------------------------------------------------------
+    // Events
+    // -------------------------------------------------------------------------
+
+    public function withEvents(): self
+    {
+        $clone = clone $this;
+        $clone->fireEvents = true;
+
+        return $clone;
+    }
+
+    public function withoutEvents(): self
+    {
+        $clone = clone $this;
+        $clone->fireEvents = false;
+
+        return $clone;
     }
 
     // -------------------------------------------------------------------------
@@ -51,7 +75,9 @@ final class SettingStorage implements SettingStorageInterface
     {
         $value = $this->all($fresh)->get($key, $default);
 
-        event(new SettingRetrieved($key, $value, $this->group));
+        if ($this->fireEvents) {
+            event(new SettingRetrieved($key, $value, $this->group));
+        }
 
         return $value;
     }
@@ -97,7 +123,7 @@ final class SettingStorage implements SettingStorageInterface
             ->when(!is_null($key), static fn($query) => $query->where('name', $key))
             ->delete();
 
-        if (!is_null($key)) {
+        if (!is_null($key) && $this->fireEvents) {
             event(new SettingDeleted($key, $this->group));
         }
 
@@ -136,7 +162,9 @@ final class SettingStorage implements SettingStorageInterface
             ['val', 'type'],
         );
 
-        event(new SettingSaved($key, $val, $this->group));
+        if ($this->fireEvents) {
+            event(new SettingSaved($key, $val, $this->group));
+        }
     }
 
     private function validate(string $key, mixed $val): void

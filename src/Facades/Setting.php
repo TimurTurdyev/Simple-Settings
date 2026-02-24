@@ -14,6 +14,8 @@ use TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface;
  * @method static bool flushCache()
  * @method static self group(string $group)
  * @method static self forGroup(string $group)
+ * @method static self withEvents()
+ * @method static self withoutEvents()
  *
  * @see \TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface
  */

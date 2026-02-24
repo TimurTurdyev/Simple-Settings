@@ -29,7 +29,9 @@ abstract class TestCase extends BaseTestCase
             'database' => ':memory:',
             'prefix' => '',
         ]);
-        
+
+        $app['config']->set('cache.default', 'array');
+
         $app['config']->set('simple-settings.table_name', 'simple_settings');
     }
 

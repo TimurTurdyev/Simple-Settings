@@ -140,6 +140,47 @@ class SettingStorageTest extends TestCase
         $this->assertEquals('value2', $storage->get('key', null, true));
     }
 
+    public function test_set_stores_timestamps_on_create(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $before = now()->startOfSecond();
+        $storage->set('key', 'value');
+        $after = now()->startOfSecond()->addSecond();
+
+        $record = SimpleSetting::query()
+            ->where('group', 'test')
+            ->where('name', 'key')
+            ->first();
+
+        $this->assertTrue($record->created_at->between($before, $after));
+        $this->assertTrue($record->updated_at->between($before, $after));
+    }
+
+    public function test_set_updates_updated_at_but_preserves_created_at_on_overwrite(): void
+    {
+        $storage = new SettingStorage('test');
+        $storage->set('key', 'original');
+
+        $createdAt = SimpleSetting::query()
+            ->where('group', 'test')
+            ->where('name', 'key')
+            ->first()
+            ->created_at;
+
+        $this->travel(1)->minutes();
+
+        $storage->set('key', 'updated');
+
+        $record = SimpleSetting::query()
+            ->where('group', 'test')
+            ->where('name', 'key')
+            ->first();
+
+        $this->assertTrue($record->created_at->equalTo($createdAt));
+        $this->assertTrue($record->updated_at->gt($createdAt));
+    }
+
     public function test_flush_cache_clears_cached_settings(): void
     {
         $storage = new SettingStorage('test');

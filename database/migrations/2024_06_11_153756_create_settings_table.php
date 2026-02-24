@@ -11,13 +11,12 @@ return new class extends Migration {
 
         if (!Schema::hasTable($table)) {
             Schema::create($table, function (Blueprint $table) {
-                $table->id();
                 $table->string('group');
                 $table->string('name');
                 $table->text('val');
                 $table->char('type', 20)->default('string');
                 $table->timestamps();
-                $table->unique(['group', 'name']);
+                $table->primary(['group', 'name']);
             });
         }
     }

@@ -12,7 +12,10 @@ class SimpleSetting extends Model
     use CastsValue;
 
     protected $table = 'simple_settings';
-    protected $fillable = ['group', 'name', 'val', 'type', 'created_at', 'updated_at'];
+    protected $primaryKey = null;
+    public $incrementing = false;
+
+    protected $fillable = ['group', 'name', 'val', 'type'];
 
     protected $casts = [
         'created_at' => 'datetime',

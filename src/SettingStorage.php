@@ -123,16 +123,18 @@ final class SettingStorage implements SettingStorageInterface
     {
         $this->validate($key, $val);
 
-        $setting = $this->modelQuery()->firstOrNew(['name' => $key]);
-
         $type = strtolower(gettype($val));
 
-        $setting->group = $this->group;
-        $setting->name  = $key;
-        $setting->val   = self::valueToString($val, $type);
-        $setting->type  = $type;
-
-        $setting->save();
+        SimpleSetting::upsert(
+            [[
+                'group' => $this->group,
+                'name'  => $key,
+                'val'   => self::valueToString($val, $type),
+                'type'  => $type,
+            ]],
+            ['group', 'name'],
+            ['val', 'type'],
+        );
 
         event(new SettingSaved($key, $val, $this->group));
     }

@@ -1,5 +1,9 @@
 # Simple Settings для Laravel
 
+<p align="center">
+  <img src="art/banner.svg" alt="Simple Settings for Laravel" width="100%">
+</p>
+
 Лёгкий менеджер настроек для Laravel с поддержкой групп, кэшированием и автоматическим приведением типов.
 
 [English](#english)

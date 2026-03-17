@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace TimurTurdyev\SimpleSettings\Tests;
 
 use Illuminate\Support\Facades\Event;
@@ -279,6 +281,99 @@ class SettingStorageTest extends TestCase
         $storage->set('key', 'value');
 
         Event::assertDispatched(SettingSaved::class);
+    }
+
+    public function test_group_returns_new_instance_without_mutating_original(): void
+    {
+        $storage = new SettingStorage('global');
+        $storage->set('key', 'global_value');
+
+        $emailStorage = $storage->group('email');
+        $emailStorage->set('key', 'email_value');
+
+        $this->assertEquals('global_value', $storage->get('key'));
+        $this->assertEquals('email_value', $emailStorage->get('key'));
+    }
+
+    public function test_list_returns_all_settings_across_groups(): void
+    {
+        $global = new SettingStorage('global');
+        $email = new SettingStorage('email');
+
+        $global->set('app_name', 'MyApp');
+        $email->set('host', 'smtp.example.com');
+
+        $all = $global->list();
+
+        $this->assertCount(2, $all);
+    }
+
+    public function test_list_filters_by_group(): void
+    {
+        $global = new SettingStorage('global');
+        $email = new SettingStorage('email');
+
+        $global->set('app_name', 'MyApp');
+        $email->set('host', 'smtp.example.com');
+
+        $filtered = $global->list('email');
+
+        $this->assertCount(1, $filtered);
+        $this->assertEquals('host', $filtered->first()->name);
+    }
+
+    public function test_groups_returns_distinct_group_names(): void
+    {
+        $global = new SettingStorage('global');
+        $email = new SettingStorage('email');
+
+        $global->set('key', 'value');
+        $email->set('key', 'value');
+
+        $groups = $global->groups();
+
+        $this->assertCount(2, $groups);
+        $this->assertContains('global', $groups);
+        $this->assertContains('email', $groups);
+    }
+
+    public function test_set_returns_void(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $result = $storage->set('key', 'value');
+
+        $this->assertNull($result);
+    }
+
+    public function test_float_value_stored_as_float_type(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $storage->set('rate', 3.14);
+
+        $record = SimpleSetting::query()
+            ->where('group', 'test')
+            ->where('name', 'rate')
+            ->first();
+
+        $this->assertEquals('float', $record->type);
+        $this->assertEquals(3.14, $storage->get('rate'));
+    }
+
+    public function test_legacy_double_type_is_read_correctly(): void
+    {
+        SimpleSetting::create([
+            'group' => 'test',
+            'name' => 'old_rate',
+            'val' => '2.71',
+            'type' => 'double',
+        ]);
+
+        $storage = new SettingStorage('test');
+
+        $this->assertEquals(2.71, $storage->get('old_rate'));
+        $this->assertIsFloat($storage->get('old_rate'));
     }
 
     public function test_for_group_inherits_events_state(): void

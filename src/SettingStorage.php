@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace TimurTurdyev\SimpleSettings;
 
 use Illuminate\Database\Eloquent\Builder;
@@ -37,9 +39,7 @@ final class SettingStorage implements SettingStorageInterface
 
     public function group(string $group): self
     {
-        $this->group = $group;
-
-        return $this;
+        return $this->forGroup($group);
     }
 
     public function forGroup(string $group): self
@@ -102,7 +102,7 @@ final class SettingStorage implements SettingStorageInterface
     // Write
     // -------------------------------------------------------------------------
 
-    public function set(string|array $key, mixed $val = null): mixed
+    public function set(string|array $key, mixed $val = null): void
     {
         if (is_array($key)) {
             foreach ($key as $name => $value) {
@@ -113,23 +113,49 @@ final class SettingStorage implements SettingStorageInterface
         }
 
         $this->flushCache();
-
-        return is_array($key) ? true : $val;
     }
 
-    public function remove(?string $key = null): int
+    public function remove(string $key): int
     {
         $deleted = $this->modelQuery()
-            ->when(!is_null($key), static fn($query) => $query->where('name', $key))
+            ->where('name', $key)
             ->delete();
 
-        if (!is_null($key) && $this->fireEvents) {
+        if ($this->fireEvents) {
             event(new SettingDeleted($key, $this->group));
         }
 
         $this->flushCache();
 
         return $deleted;
+    }
+
+    public function removeAll(): int
+    {
+        $deleted = $this->modelQuery()->delete();
+
+        $this->flushCache();
+
+        return $deleted;
+    }
+
+    // -------------------------------------------------------------------------
+    // Listing
+    // -------------------------------------------------------------------------
+
+    public function list(?string $group = null): Collection
+    {
+        return SimpleSetting::query()
+            ->when($group, fn($q) => $q->where('group', $group))
+            ->get(['group', 'name', 'val', 'type']);
+    }
+
+    public function groups(): array
+    {
+        return SimpleSetting::query()
+            ->distinct()
+            ->pluck('group')
+            ->all();
     }
 
     // -------------------------------------------------------------------------
@@ -150,6 +176,10 @@ final class SettingStorage implements SettingStorageInterface
         $this->validate($key, $val);
 
         $type = strtolower(gettype($val));
+
+        if ($type === 'double') {
+            $type = 'float';
+        }
 
         SimpleSetting::upsert(
             [[

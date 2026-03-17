@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace TimurTurdyev\SimpleSettings\Providers;
 
 use Illuminate\Support\ServiceProvider;
@@ -15,6 +17,11 @@ class SettingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->mergeConfigFrom(
+            __DIR__ . '/../../config/simple-settings.php',
+            'simple-settings'
+        );
+
         $this->app->singleton(SettingStorageInterface::class, function ($app) {
             return new SettingStorage();
         });

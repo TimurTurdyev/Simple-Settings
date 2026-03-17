@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace TimurTurdyev\SimpleSettings\Console\Commands;
 
 class SettingDeleteCommand extends BaseCommand
@@ -13,7 +15,15 @@ class SettingDeleteCommand extends BaseCommand
         $key = $this->argument('key');
         $group = $this->option('group');
 
-        $deleted = $this->storage($group)->remove($key);
+        $storage = $this->storage($group);
+
+        if (!$key && !$this->confirm("Delete ALL settings in group [{$group}]?")) {
+            $this->info('Cancelled.');
+
+            return self::SUCCESS;
+        }
+
+        $deleted = $key ? $storage->remove($key) : $storage->removeAll();
 
         if ($deleted > 0) {
             $keyDisplay = $key ?? "all settings in group [{$group}]";

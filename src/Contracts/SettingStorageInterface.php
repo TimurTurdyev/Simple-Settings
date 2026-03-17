@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace TimurTurdyev\SimpleSettings\Contracts;
 
 interface SettingStorageInterface
@@ -8,11 +10,17 @@ interface SettingStorageInterface
 
     public function all(bool $fresh = false): \Illuminate\Support\Collection;
 
-    public function set(string|array $key, mixed $val = null): mixed;
+    public function set(string|array $key, mixed $val = null): void;
 
     public function has(string $key): bool;
 
-    public function remove(?string $key = null): int;
+    public function remove(string $key): int;
+
+    public function removeAll(): int;
+
+    public function list(?string $group = null): \Illuminate\Support\Collection;
+
+    public function groups(): array;
 
     public function flushCache(): bool;
 

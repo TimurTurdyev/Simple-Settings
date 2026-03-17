@@ -46,7 +46,8 @@ $name = Setting::get('site_name');              // 'My App'
 $name = Setting::get('missing', 'default');    // 'default'
 
 Setting::has('site_name'); // true
-Setting::remove('site_name');
+Setting::remove('site_name');   // удалить конкретный ключ
+Setting::removeAll();           // удалить все настройки группы
 Setting::all();        // Collection всех настроек текущей группы
 Setting::flushCache();
 ```
@@ -72,7 +73,7 @@ $email->get('host'); // 'smtp.example.com'
 
 Setting::get('host'); // null — другая группа
 
-// group() — изменяет текущий экземпляр
+// group() — алиас для forGroup(), тоже возвращает новый экземпляр
 Setting::group('email')->get('host');
 ```
 
@@ -134,7 +135,7 @@ php artisan setting:clear --group=email
 php artisan setting:delete site_name
 php artisan setting:delete host --group=email
 
-# Удалить все настройки группы
+# Удалить все настройки группы (через removeAll)
 php artisan setting:delete --group=email
 ```
 
@@ -224,12 +225,15 @@ PRIMARY KEY (group, name)
 | Метод | Описание |
 |-------|----------|
 | `get(string $key, mixed $default = null, bool $fresh = false)` | Получить значение настройки |
-| `set(string\|array $key, mixed $val = null)` | Установить одно или несколько значений |
+| `set(string\|array $key, mixed $val = null): void` | Установить одно или несколько значений |
 | `has(string $key)` | Проверить существование ключа |
-| `remove(?string $key = null)` | Удалить ключ или все ключи группы (если `null`) |
+| `remove(string $key): int` | Удалить конкретный ключ |
+| `removeAll(): int` | Удалить все настройки текущей группы |
 | `all(bool $fresh = false)` | Получить все настройки группы как Collection |
+| `list(?string $group = null)` | Получить все записи (raw) с фильтром по группе |
+| `groups(): array` | Получить список всех групп |
 | `flushCache()` | Сбросить кэш текущей группы |
-| `group(string $group)` | Переключить группу у текущего экземпляра |
+| `group(string $group)` | Алиас для `forGroup()` — новый экземпляр |
 | `forGroup(string $group)` | Вернуть новый экземпляр для указанной группы |
 | `withEvents()` | Вернуть новый экземпляр с включёнными событиями |
 | `withoutEvents()` | Вернуть новый экземпляр с отключёнными событиями |

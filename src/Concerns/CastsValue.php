@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace TimurTurdyev\SimpleSettings\Concerns;
 
 trait CastsValue
@@ -15,13 +17,13 @@ trait CastsValue
     public static function castValue(string|null $val, string $castTo): mixed
     {
         return match ($castTo) {
-            'integer' => (int)$val,
-            'double'  => (float)$val,
-            'boolean' => (bool)$val,
-            'array'   => json_decode($val, true),
-            'object'  => json_decode($val, false),
-            'null'    => null,
-            default   => (string)$val,
+            'integer'          => (int)$val,
+            'double', 'float'  => (float)$val,
+            'boolean'          => (bool)$val,
+            'array'            => json_decode($val, true),
+            'object'           => json_decode($val, false),
+            'null'             => null,
+            default            => (string)$val,
         };
     }
 }

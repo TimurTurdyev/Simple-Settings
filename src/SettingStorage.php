@@ -117,15 +117,24 @@ final class SettingStorage implements SettingStorageInterface
         return is_array($key) ? true : $val;
     }
 
-    public function remove(?string $key = null): int
+    public function remove(string $key): int
     {
         $deleted = $this->modelQuery()
-            ->when(!is_null($key), static fn($query) => $query->where('name', $key))
+            ->where('name', $key)
             ->delete();
 
-        if (!is_null($key) && $this->fireEvents) {
+        if ($this->fireEvents) {
             event(new SettingDeleted($key, $this->group));
         }
+
+        $this->flushCache();
+
+        return $deleted;
+    }
+
+    public function removeAll(): int
+    {
+        $deleted = $this->modelQuery()->delete();
 
         $this->flushCache();
 

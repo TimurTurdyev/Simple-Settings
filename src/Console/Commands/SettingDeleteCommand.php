@@ -13,7 +13,8 @@ class SettingDeleteCommand extends BaseCommand
         $key = $this->argument('key');
         $group = $this->option('group');
 
-        $deleted = $this->storage($group)->remove($key);
+        $storage = $this->storage($group);
+        $deleted = $key ? $storage->remove($key) : $storage->removeAll();
 
         if ($deleted > 0) {
             $keyDisplay = $key ?? "all settings in group [{$group}]";

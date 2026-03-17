@@ -106,6 +106,34 @@ class SettingStorageTest extends TestCase
         $this->assertFalse($storage->has('to_remove'));
     }
 
+    public function test_can_remove_all_settings_in_group(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $storage->set('key1', 'value1');
+        $storage->set('key2', 'value2');
+        $this->assertCount(2, $storage->all());
+
+        $deleted = $storage->removeAll();
+
+        $this->assertEquals(2, $deleted);
+        $this->assertCount(0, $storage->all(true));
+    }
+
+    public function test_remove_all_does_not_affect_other_groups(): void
+    {
+        $storage = new SettingStorage('test');
+        $other = new SettingStorage('other');
+
+        $storage->set('key', 'value');
+        $other->set('key', 'value');
+
+        $storage->removeAll();
+
+        $this->assertCount(0, $storage->all(true));
+        $this->assertTrue($other->has('key'));
+    }
+
     public function test_can_get_all_settings_in_group(): void
     {
         $storage = new SettingStorage('test');

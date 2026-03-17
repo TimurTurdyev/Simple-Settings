@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace TimurTurdyev\SimpleSettings;
 
 use Illuminate\Database\Eloquent\Builder;
@@ -37,9 +39,7 @@ final class SettingStorage implements SettingStorageInterface
 
     public function group(string $group): self
     {
-        $this->group = $group;
-
-        return $this;
+        return $this->forGroup($group);
     }
 
     public function forGroup(string $group): self
@@ -102,7 +102,7 @@ final class SettingStorage implements SettingStorageInterface
     // Write
     // -------------------------------------------------------------------------
 
-    public function set(string|array $key, mixed $val = null): mixed
+    public function set(string|array $key, mixed $val = null): void
     {
         if (is_array($key)) {
             foreach ($key as $name => $value) {
@@ -113,8 +113,6 @@ final class SettingStorage implements SettingStorageInterface
         }
 
         $this->flushCache();
-
-        return is_array($key) ? true : $val;
     }
 
     public function remove(string $key): int
@@ -142,6 +140,25 @@ final class SettingStorage implements SettingStorageInterface
     }
 
     // -------------------------------------------------------------------------
+    // Listing
+    // -------------------------------------------------------------------------
+
+    public function list(?string $group = null): Collection
+    {
+        return SimpleSetting::query()
+            ->when($group, fn($q) => $q->where('group', $group))
+            ->get(['group', 'name', 'val', 'type']);
+    }
+
+    public function groups(): array
+    {
+        return SimpleSetting::query()
+            ->distinct()
+            ->pluck('group')
+            ->all();
+    }
+
+    // -------------------------------------------------------------------------
     // Cache
     // -------------------------------------------------------------------------
 
@@ -159,6 +176,10 @@ final class SettingStorage implements SettingStorageInterface
         $this->validate($key, $val);
 
         $type = strtolower(gettype($val));
+
+        if ($type === 'double') {
+            $type = 'float';
+        }
 
         SimpleSetting::upsert(
             [[

@@ -16,6 +16,13 @@ class SettingDeleteCommand extends BaseCommand
         $group = $this->option('group');
 
         $storage = $this->storage($group);
+
+        if (!$key && !$this->confirm("Delete ALL settings in group [{$group}]?")) {
+            $this->info('Cancelled.');
+
+            return self::SUCCESS;
+        }
+
         $deleted = $key ? $storage->remove($key) : $storage->removeAll();
 
         if ($deleted > 0) {

@@ -18,8 +18,9 @@ class SettingClearCommand extends BaseCommand
             $this->storage($group)->flushCache();
             $this->info("Cache for group [{$group}] has been cleared.");
         } else {
-            foreach ($this->storage()->groups() as $g) {
-                $this->storage($g)->flushCache();
+            $storage = $this->storage();
+            foreach ($storage->groups() as $g) {
+                $storage->forGroup($g)->flushCache();
             }
 
             $this->info('All settings cache has been cleared.');

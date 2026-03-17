@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace TimurTurdyev\SimpleSettings\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Scope;

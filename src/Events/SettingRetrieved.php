@@ -1,14 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace TimurTurdyev\SimpleSettings\Events;
 
-use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
-use Illuminate\Queue\SerializesModels;
 
 class SettingRetrieved
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable;
 
     public function __construct(
         public readonly string $key,

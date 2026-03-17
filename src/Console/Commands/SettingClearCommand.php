@@ -1,8 +1,8 @@
 <?php
 
-namespace TimurTurdyev\SimpleSettings\Console\Commands;
+declare(strict_types=1);
 
-use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
+namespace TimurTurdyev\SimpleSettings\Console\Commands;
 
 class SettingClearCommand extends BaseCommand
 {
@@ -18,8 +18,9 @@ class SettingClearCommand extends BaseCommand
             $this->storage($group)->flushCache();
             $this->info("Cache for group [{$group}] has been cleared.");
         } else {
-            SimpleSetting::query()->distinct()->pluck('group')
-                ->each(fn($g) => $this->storage($g)->flushCache());
+            foreach ($this->storage()->groups() as $g) {
+                $this->storage($g)->flushCache();
+            }
 
             $this->info('All settings cache has been cleared.');
         }

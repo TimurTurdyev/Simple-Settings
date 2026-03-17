@@ -1,8 +1,8 @@
 <?php
 
-namespace TimurTurdyev\SimpleSettings\Console\Commands;
+declare(strict_types=1);
 
-use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
+namespace TimurTurdyev\SimpleSettings\Console\Commands;
 
 class SettingListCommand extends BaseCommand
 {
@@ -14,10 +14,7 @@ class SettingListCommand extends BaseCommand
     {
         $group = $this->option('group');
 
-        $query = SimpleSetting::query()
-            ->when($group, fn($q) => $q->where('group', $group));
-
-        $settings = $query->get();
+        $settings = $this->storage()->list($group);
 
         if ($settings->isEmpty()) {
             $this->info('No settings found.');

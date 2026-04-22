@@ -26,7 +26,7 @@ final class SettingStorage implements SettingStorageInterface
         protected string $group = 'global',
         ?bool $fireEvents = null,
     ) {
-        if ($cacheKey = config('simple-settings.path_cache_key')) {
+        if ($cacheKey = config('simple-settings.cache_key_prefix')) {
             $this->cacheKey = $cacheKey;
         }
 
@@ -53,18 +53,12 @@ final class SettingStorage implements SettingStorageInterface
 
     public function withEvents(): self
     {
-        $clone = clone $this;
-        $clone->fireEvents = true;
-
-        return $clone;
+        return new self($this->group, true);
     }
 
     public function withoutEvents(): self
     {
-        $clone = clone $this;
-        $clone->fireEvents = false;
-
-        return $clone;
+        return new self($this->group, false);
     }
 
     // -------------------------------------------------------------------------

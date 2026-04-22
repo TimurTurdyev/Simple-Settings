@@ -200,11 +200,16 @@ Event::listen(SettingSaved::class, function (SettingSaved $event) {
 ```php
 // config/simple-settings.php
 return [
-    'table_name'       => 'simple_settings', // название таблицы
-    'path_cache_key'   => 'simple_settings', // префикс ключей кэша
-    'validation_rules' => [],                // правила валидации по ключу
+    'table_name'        => 'simple_settings', // название таблицы
+    'cache_key_prefix'  => 'simple_settings', // префикс ключей кэша
+    'events'            => false,             // глобально включить события
+    'validation_rules'  => [],                // правила валидации по ключу
 ];
 ```
+
+## Лимиты значений
+
+Колонка `val` создаётся как `TEXT` — на MySQL/MariaDB это **65 535 байт** (~64 KB), на PostgreSQL и SQLite ограничения нет. Для типовых настроек этого с большим запасом: список из 200 категорий-объектов влезет, массив из 10 000 коротких строк — тоже. Если упёрлись в лимит — это сигнал, что в одну настройку положили что-то «не то» (каталог товаров, лог, контент). Для таких данных нужна отдельная таблица или другое хранилище, не settings-таблица.
 
 ## Схема БД
 
@@ -238,6 +243,10 @@ PRIMARY KEY (group, name)
 | `withEvents()` | Вернуть новый экземпляр с включёнными событиями |
 | `withoutEvents()` | Вернуть новый экземпляр с отключёнными событиями |
 
+## Преимущества
+
+Простой key-value для настроек приложения. Не нужно описывать PHP-класс под каждую группу настроек и не нужна миграция на каждый новый ключ — всё хранится в одной таблице `simple_settings`, дубликаты исключены составным первичным ключом `(group, name)`. Тип значения (`string`, `int`, `float`, `bool`, `array`, `null`) сохраняется и восстанавливается автоматически. Из зависимостей — только `illuminate/database` и `illuminate/support`.
+
 ---
 
 ## English
@@ -266,5 +275,13 @@ Setting::all(fresh: true);                 // bypass cache
 ```
 
 Types (`integer`, `float`, `boolean`, `array`, `null`) are detected and restored automatically.
+
+**Configuration keys:** `table_name`, `cache_key_prefix`, `events`, `validation_rules`.
+
+**Value size limits:** the `val` column is `TEXT` — 64 KB on MySQL/MariaDB, unlimited on PostgreSQL/SQLite. Typical settings fit with plenty of room (200 catalog-like objects, 10 000 short strings). Hitting the cap usually means the data belongs in its own table, not in settings.
+
+### Highlights
+
+Plain key-value storage for app settings. No PHP class per settings group, no migration per new key — everything lives in a single `simple_settings` table, and the composite primary key `(group, name)` rules out duplicates. Value types (`string`, `int`, `float`, `bool`, `array`, `null`) are stored and restored automatically. The only dependencies are `illuminate/database` and `illuminate/support`.
 
 For full documentation see the Russian section above.

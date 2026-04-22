@@ -137,6 +137,16 @@ php artisan setting:delete host --group=email
 
 # Удалить все настройки группы (через removeAll)
 php artisan setting:delete --group=email
+
+# Экспорт всех настроек в JSON
+php artisan setting:export backup.json
+php artisan setting:export backup.json --group=email   # только одна группа
+php artisan setting:export                              # вывод в stdout
+
+# Импорт из JSON (по умолчанию merge — существующие ключи перезаписываются, новые добавляются)
+php artisan setting:import backup.json
+php artisan setting:import backup.json --group=email   # импортировать только одну группу
+php artisan setting:import backup.json --replace       # сначала очистить группы из файла (с подтверждением)
 ```
 
 ## События
@@ -164,20 +174,22 @@ Setting::forGroup('email')->withEvents()->set('host', 'smtp.example.com');
 
 `withEvents()` и `withoutEvents()` возвращают новый экземпляр — текущий не изменяется.
 
-| Событие | Когда срабатывает |
-|---------|------------------|
-| `SettingRetrieved` | при вызове `get()` |
-| `SettingSaved` | при записи через `set()` |
-| `SettingDeleted` | при удалении конкретного ключа через `remove()` |
+| Событие | Когда срабатывает | Поля payload |
+|---------|------------------|--------------|
+| `SettingRetrieved` | при вызове `get()` | `key`, `value`, `group` |
+| `SettingSaved` | при записи через `set()` | `key`, `value`, `group`, `oldValue`, `existed` |
+| `SettingDeleted` | при удалении конкретного ключа через `remove()` | `key`, `group`, `oldValue` |
+| `SettingsFlushed` | при `removeAll()` (очистка всей группы) | `group` |
+
+`oldValue` и `existed` в `SettingSaved` имеют смысл только когда включён активити-лог (см. ниже) — без него старое значение не читается, и в событие летят `null` / `false`. Это сделано, чтобы лишний `SELECT` перед записью выполнялся только когда он реально нужен.
 
 ```php
 use TimurTurdyev\SimpleSettings\Events\SettingSaved;
 use Illuminate\Support\Facades\Event;
 
 Event::listen(SettingSaved::class, function (SettingSaved $event) {
-    // $event->key
-    // $event->value
-    // $event->group
+    // $event->key, $event->value, $event->group
+    // $event->oldValue, $event->existed (заполнены, только если audit включён)
 });
 ```
 
@@ -195,15 +207,65 @@ Event::listen(SettingSaved::class, function (SettingSaved $event) {
 
 При нарушении правила `set()` выбрасывает `InvalidArgumentException`.
 
+## Активити-лог (опционально)
+
+Опциональное логирование изменений настроек в отдельную таблицу `simple_setting_changes`. Без сторонних пакетов — своя модель + listener + миграция (которая накатывается автоматически при `php artisan migrate`).
+
+**Включение:** требуются включённые события + включённый аудит:
+
+```php
+// config/simple-settings.php
+'events' => true,
+'audit' => [
+    'enabled' => true,
+    'table'   => 'simple_setting_changes', // имя таблицы можно переопределить
+],
+```
+
+Когда оба флага включены, перед каждым `set()` / `remove()` библиотека читает текущее значение (через кеш — лишних запросов обычно нет) и записывает его в `old_payload`, новое — в `new_payload`. Causer берётся из `auth()->user()` — для CLI/queue остаётся `null`.
+
+**Чтение истории:**
+
+```php
+use TimurTurdyev\SimpleSettings\Models\SimpleSettingChange;
+
+// Вся история конкретного ключа
+SimpleSettingChange::query()
+    ->forSetting('email', 'host')
+    ->latest('created_at')
+    ->limit(20)
+    ->get();
+
+// Только удаления
+SimpleSettingChange::query()->event('deleted')->get();
+
+// Действия конкретного пользователя
+SimpleSettingChange::query()
+    ->where('causer_type', User::class)
+    ->where('causer_id', $userId)
+    ->get();
+```
+
+**Поля записи:** `group`, `name`, `event` (`created` / `updated` / `deleted`), `old_payload` (JSON или `null`), `new_payload`, `causer_type`, `causer_id`, `created_at`.
+
+**Известные ограничения:**
+- `removeAll()` НЕ создаёт записей в активити-логе (он бесшумный по умолчанию). Для аудита очистки группы — слушайте `SettingsFlushed` событие самостоятельно или удаляйте ключи через `remove($key)` явно.
+- `withoutEvents()` отключает и события, и активити-лог (логично — лог построен поверх событий). Удобно для bulk-сидов.
+
 ## Конфигурация
 
 ```php
 // config/simple-settings.php
 return [
-    'table_name'        => 'simple_settings', // название таблицы
+    'table_name'        => 'simple_settings', // название основной таблицы
     'cache_key_prefix'  => 'simple_settings', // префикс ключей кэша
     'events'            => false,             // глобально включить события
     'validation_rules'  => [],                // правила валидации по ключу
+
+    'audit' => [
+        'enabled' => false,                       // активити-лог изменений настроек
+        'table'   => 'simple_setting_changes',
+    ],
 ];
 ```
 
@@ -276,9 +338,33 @@ Setting::all(fresh: true);                 // bypass cache
 
 Types (`integer`, `float`, `boolean`, `array`, `null`) are detected and restored automatically.
 
-**Configuration keys:** `table_name`, `cache_key_prefix`, `events`, `validation_rules`.
+**Configuration keys:** `table_name`, `cache_key_prefix`, `events`, `validation_rules`, `audit.enabled`, `audit.table`.
 
 **Value size limits:** the `val` column is `TEXT` — 64 KB on MySQL/MariaDB, unlimited on PostgreSQL/SQLite. Typical settings fit with plenty of room (200 catalog-like objects, 10 000 short strings). Hitting the cap usually means the data belongs in its own table, not in settings.
+
+### Activity log (optional)
+
+Opt-in change history written to a separate `simple_setting_changes` table. No external packages — just a model, a listener, and a migration that runs as part of `php artisan migrate`. Enable both `events` and `audit.enabled` in the config; once active, every `set()` / `remove()` records `old_payload`, `new_payload`, and the causer (`auth()->user()`).
+
+```php
+use TimurTurdyev\SimpleSettings\Models\SimpleSettingChange;
+
+SimpleSettingChange::query()
+    ->forSetting('email', 'host')
+    ->latest('created_at')
+    ->limit(20)
+    ->get();
+```
+
+`removeAll()` is intentionally silent and dispatches `SettingsFlushed` instead of per-key entries; listen to it directly if you need to audit group resets.
+
+### Artisan commands
+
+`setting:get`, `setting:set`, `setting:list`, `setting:clear`, `setting:delete`, plus `setting:export {file?} {--group=}` and `setting:import {file} {--replace} {--group=}` for backups and environment-to-environment migration. Round-trip preserves PHP types because the JSON file carries the type column alongside the raw value.
+
+### Events
+
+`SettingRetrieved`, `SettingSaved`, `SettingDeleted`, `SettingsFlushed`. Disabled by default; enable globally via the `events` config key or per-call via `Setting::withEvents()`. `SettingSaved` carries `oldValue` and `existed` only when the audit log is on.
 
 ### Highlights
 

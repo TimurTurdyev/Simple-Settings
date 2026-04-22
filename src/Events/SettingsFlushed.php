@@ -6,13 +6,11 @@ namespace TimurTurdyev\SimpleSettings\Events;
 
 use Illuminate\Foundation\Events\Dispatchable;
 
-class SettingDeleted
+class SettingsFlushed
 {
     use Dispatchable;
 
     public function __construct(
-        public readonly string $key,
         public readonly string $group,
-        public readonly mixed $oldValue,
     ) {}
 }

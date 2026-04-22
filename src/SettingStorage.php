@@ -13,6 +13,7 @@ use TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface;
 use TimurTurdyev\SimpleSettings\Events\SettingDeleted;
 use TimurTurdyev\SimpleSettings\Events\SettingRetrieved;
 use TimurTurdyev\SimpleSettings\Events\SettingSaved;
+use TimurTurdyev\SimpleSettings\Events\SettingsFlushed;
 use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
 
 final class SettingStorage implements SettingStorageInterface
@@ -111,12 +112,14 @@ final class SettingStorage implements SettingStorageInterface
 
     public function remove(string $key): int
     {
+        $oldValue = $this->captureOldValue($key);
+
         $deleted = $this->modelQuery()
             ->where('name', $key)
             ->delete();
 
         if ($this->fireEvents) {
-            event(new SettingDeleted($key, $this->group));
+            event(new SettingDeleted($key, $this->group, $oldValue));
         }
 
         $this->flushCache();
@@ -127,6 +130,10 @@ final class SettingStorage implements SettingStorageInterface
     public function removeAll(): int
     {
         $deleted = $this->modelQuery()->delete();
+
+        if ($this->fireEvents) {
+            event(new SettingsFlushed($this->group));
+        }
 
         $this->flushCache();
 
@@ -175,6 +182,13 @@ final class SettingStorage implements SettingStorageInterface
             $type = 'float';
         }
 
+        $existed = false;
+        $oldValue = null;
+        if ($this->shouldCaptureOldValue()) {
+            $existed = $this->has($key);
+            $oldValue = $existed ? $this->get($key) : null;
+        }
+
         SimpleSetting::upsert(
             [[
                 'group' => $this->group,
@@ -187,8 +201,22 @@ final class SettingStorage implements SettingStorageInterface
         );
 
         if ($this->fireEvents) {
-            event(new SettingSaved($key, $val, $this->group));
+            event(new SettingSaved($key, $val, $this->group, $oldValue, $existed));
         }
+    }
+
+    private function captureOldValue(string $key): mixed
+    {
+        if (!$this->shouldCaptureOldValue()) {
+            return null;
+        }
+
+        return $this->has($key) ? $this->get($key) : null;
+    }
+
+    private function shouldCaptureOldValue(): bool
+    {
+        return $this->fireEvents && (bool) config('simple-settings.audit.enabled', false);
     }
 
     private function validate(string $key, mixed $val): void

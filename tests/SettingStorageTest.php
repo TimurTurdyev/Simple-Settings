@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Event;
 use TimurTurdyev\SimpleSettings\Events\SettingDeleted;
 use TimurTurdyev\SimpleSettings\Events\SettingRetrieved;
 use TimurTurdyev\SimpleSettings\Events\SettingSaved;
+use TimurTurdyev\SimpleSettings\Events\SettingsFlushed;
 use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
 use TimurTurdyev\SimpleSettings\SettingStorage;
 
@@ -537,5 +538,28 @@ class SettingStorageTest extends TestCase
         $property->setAccessible(true);
 
         return $property->getValue($storage);
+    }
+
+    public function test_settings_flushed_event_is_dispatched_on_remove_all(): void
+    {
+        Event::fake();
+
+        $storage = (new SettingStorage('test'))->withEvents();
+        $storage->set('a', 1);
+        $storage->removeAll();
+
+        Event::assertDispatched(
+            SettingsFlushed::class,
+            fn($e) => $e->group === 'test'
+        );
+    }
+
+    public function test_settings_flushed_event_is_not_dispatched_when_events_disabled(): void
+    {
+        Event::fake();
+
+        (new SettingStorage('test'))->removeAll();
+
+        Event::assertNotDispatched(SettingsFlushed::class);
     }
 }

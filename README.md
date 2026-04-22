@@ -181,7 +181,7 @@ Setting::forGroup('email')->withEvents()->set('host', 'smtp.example.com');
 | `SettingDeleted` | при удалении конкретного ключа через `remove()` | `key`, `group`, `oldValue` |
 | `SettingsFlushed` | при `removeAll()` (очистка всей группы) | `group` |
 
-`oldValue` и `existed` в `SettingSaved` заполняются только если активирован активити-лог (см. ниже) — иначе всегда `null` / `false`. Это сделано, чтобы лишний `SELECT` перед записью выполнялся только когда он реально нужен.
+`oldValue` и `existed` в `SettingSaved` имеют смысл только когда включён активити-лог (см. ниже) — без него старое значение не читается, и в событие летят `null` / `false`. Это сделано, чтобы лишний `SELECT` перед записью выполнялся только когда он реально нужен.
 
 ```php
 use TimurTurdyev\SimpleSettings\Events\SettingSaved;

@@ -13,6 +13,6 @@ class SettingDeleted
     public function __construct(
         public readonly string $key,
         public readonly string $group,
-        public readonly mixed $oldValue = null,
+        public readonly mixed $oldValue,
     ) {}
 }

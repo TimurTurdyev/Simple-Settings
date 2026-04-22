@@ -14,7 +14,7 @@ class SettingSaved
         public readonly string $key,
         public readonly mixed $value,
         public readonly string $group,
-        public readonly mixed $oldValue = null,
-        public readonly bool $existed = false,
+        public readonly mixed $oldValue,
+        public readonly bool $existed,
     ) {}
 }

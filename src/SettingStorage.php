@@ -13,6 +13,7 @@ use TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface;
 use TimurTurdyev\SimpleSettings\Events\SettingDeleted;
 use TimurTurdyev\SimpleSettings\Events\SettingRetrieved;
 use TimurTurdyev\SimpleSettings\Events\SettingSaved;
+use TimurTurdyev\SimpleSettings\Events\SettingsFlushed;
 use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
 
 final class SettingStorage implements SettingStorageInterface
@@ -129,6 +130,10 @@ final class SettingStorage implements SettingStorageInterface
     public function removeAll(): int
     {
         $deleted = $this->modelQuery()->delete();
+
+        if ($this->fireEvents) {
+            event(new SettingsFlushed($this->group));
+        }
 
         $this->flushCache();
 

@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use TimurTurdyev\SimpleSettings\Console\Commands\SettingClearCommand;
 use TimurTurdyev\SimpleSettings\Console\Commands\SettingDeleteCommand;
+use TimurTurdyev\SimpleSettings\Console\Commands\SettingExportCommand;
 use TimurTurdyev\SimpleSettings\Console\Commands\SettingGetCommand;
+use TimurTurdyev\SimpleSettings\Console\Commands\SettingImportCommand;
 use TimurTurdyev\SimpleSettings\Console\Commands\SettingListCommand;
 use TimurTurdyev\SimpleSettings\Console\Commands\SettingSetCommand;
 use TimurTurdyev\SimpleSettings\Contracts\SettingStorageInterface;
@@ -46,6 +48,8 @@ class SettingServiceProvider extends ServiceProvider
                 SettingListCommand::class,
                 SettingClearCommand::class,
                 SettingDeleteCommand::class,
+                SettingExportCommand::class,
+                SettingImportCommand::class,
             ]);
         }
 

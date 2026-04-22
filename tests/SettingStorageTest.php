@@ -386,4 +386,156 @@ class SettingStorageTest extends TestCase
 
         Event::assertDispatched(SettingSaved::class, fn($e) => $e->group === 'email');
     }
+
+    public function test_with_events_returns_new_instance_without_mutating_original(): void
+    {
+        Event::fake();
+
+        $original = new SettingStorage('test');
+        $withEvents = $original->withEvents();
+
+        $this->assertNotSame($original, $withEvents);
+
+        $original->set('key', 'value');
+        Event::assertNotDispatched(SettingSaved::class);
+
+        $withEvents->set('key', 'value');
+        Event::assertDispatched(SettingSaved::class);
+    }
+
+    public function test_without_events_returns_new_instance_without_mutating_original(): void
+    {
+        Event::fake();
+
+        $original = (new SettingStorage('test'))->withEvents();
+        $withoutEvents = $original->withoutEvents();
+
+        $this->assertNotSame($original, $withoutEvents);
+
+        $withoutEvents->set('key', 'value');
+        Event::assertNotDispatched(SettingSaved::class);
+
+        $original->set('key2', 'value');
+        Event::assertDispatched(SettingSaved::class);
+    }
+
+    public function test_null_value_round_trip(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $storage->set('nothing', null);
+
+        $this->assertNull($storage->get('nothing'));
+
+        $record = SimpleSetting::query()
+            ->where('group', 'test')
+            ->where('name', 'nothing')
+            ->first();
+
+        $this->assertEquals('null', $record->type);
+    }
+
+    public function test_has_returns_true_for_null_value(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $storage->set('nothing', null);
+
+        $this->assertTrue($storage->has('nothing'));
+        $this->assertFalse($storage->has('never_set'));
+    }
+
+    public function test_validation_passes_when_value_is_valid(): void
+    {
+        config(['simple-settings.validation_rules' => [
+            'per_page' => 'integer|min:1|max:200',
+        ]]);
+
+        $storage = new SettingStorage('test');
+
+        $storage->set('per_page', 50);
+
+        $this->assertEquals(50, $storage->get('per_page'));
+    }
+
+    public function test_validation_throws_when_value_is_invalid(): void
+    {
+        config(['simple-settings.validation_rules' => [
+            'per_page' => 'integer|min:1|max:200',
+        ]]);
+
+        $storage = new SettingStorage('test');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/per_page/');
+
+        $storage->set('per_page', 999);
+    }
+
+    public function test_bulk_set_aborts_on_validation_failure(): void
+    {
+        config(['simple-settings.validation_rules' => [
+            'per_page' => 'integer|min:1|max:200',
+        ]]);
+
+        $storage = new SettingStorage('test');
+
+        try {
+            $storage->set([
+                'app_name' => 'Valid',
+                'per_page' => 999,
+                'site_url' => 'never_reached',
+            ]);
+            $this->fail('Expected InvalidArgumentException was not thrown.');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('per_page', $e->getMessage());
+        }
+
+        $this->assertEquals('Valid', $storage->get('app_name', null, true));
+        $this->assertNull($storage->get('per_page', null, true));
+        $this->assertNull($storage->get('site_url', null, true));
+    }
+
+    public function test_can_store_realistic_settings_payload(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $catalog = array_fill(0, 200, [
+            'id' => 12345,
+            'name' => 'Категория детских товаров',
+            'slug' => 'detskie-tovary',
+            'active' => true,
+        ]);
+
+        $storage->set('featured_categories', $catalog);
+
+        $this->assertEquals($catalog, $storage->get('featured_categories', null, true));
+    }
+
+    public function test_cache_key_prefix_used_when_set(): void
+    {
+        config(['simple-settings.cache_key_prefix' => 'custom_prefix']);
+
+        $storage = new SettingStorage('global');
+
+        $this->assertEquals('custom_prefix', $this->readCacheKey($storage));
+    }
+
+    public function test_default_cache_key_used_when_unset(): void
+    {
+        config(['simple-settings.cache_key_prefix' => null]);
+
+        $storage = new SettingStorage('global');
+
+        $this->assertEquals('simple_settings', $this->readCacheKey($storage));
+    }
+
+    private function readCacheKey(SettingStorage $storage): string
+    {
+        $reflection = new \ReflectionClass($storage);
+        $property = $reflection->getProperty('cacheKey');
+        $property->setAccessible(true);
+
+        return $property->getValue($storage);
+    }
 }

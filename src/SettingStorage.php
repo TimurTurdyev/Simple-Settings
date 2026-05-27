@@ -83,9 +83,17 @@ final class SettingStorage implements SettingStorageInterface
             return $this->getMapWithKeys();
         }
 
-        return Cache::memo()->rememberForever($this->getCacheKey(), function () {
-            return $this->getMapWithKeys();
+        $cached = Cache::memo()->rememberForever($this->getCacheKey(), function () {
+            return $this->getMapWithKeys()->toArray();
         });
+
+        if (is_array($cached)) {
+            return collect($cached);
+        }
+
+        $this->flushCache();
+
+        return $this->getMapWithKeys();
     }
 
     public function has(string $key): bool
@@ -165,7 +173,7 @@ final class SettingStorage implements SettingStorageInterface
 
     public function flushCache(): bool
     {
-        return Cache::forget($this->getCacheKey());
+        return Cache::memo()->forget($this->getCacheKey());
     }
 
     // -------------------------------------------------------------------------

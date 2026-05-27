@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace TimurTurdyev\SimpleSettings\Tests;
 
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use TimurTurdyev\SimpleSettings\Events\SettingDeleted;
 use TimurTurdyev\SimpleSettings\Events\SettingRetrieved;
@@ -561,5 +563,39 @@ class SettingStorageTest extends TestCase
         (new SettingStorage('test'))->removeAll();
 
         Event::assertNotDispatched(SettingsFlushed::class);
+    }
+
+    public function test_set_then_get_returns_updated_value_within_request(): void
+    {
+        $storage = new SettingStorage('test');
+        $storage->set('key', 'v1');
+        $this->assertEquals('v1', $storage->get('key'));
+
+        $storage->set('key', 'v2');
+        $this->assertEquals('v2', $storage->get('key'));
+    }
+
+    public function test_all_returns_collection_instance(): void
+    {
+        $storage = new SettingStorage('test');
+        $storage->set('key', 'value');
+
+        $result = $storage->all();
+
+        $this->assertInstanceOf(Collection::class, $result);
+        $this->assertEquals('value', $result->get('key'));
+    }
+
+    public function test_all_self_heals_when_cache_contains_non_array(): void
+    {
+        $storage = new SettingStorage('test');
+        $storage->set('key', 'value');
+
+        Cache::memo()->forever('simple_settings.test', collect(['key' => 'stale']));
+
+        $result = $storage->all();
+
+        $this->assertInstanceOf(Collection::class, $result);
+        $this->assertEquals('value', $result->get('key'));
     }
 }

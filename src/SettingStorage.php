@@ -192,8 +192,11 @@ final class SettingStorage implements SettingStorageInterface
             $this->validate((string) $name, $value);
         }
 
+        $audit = $this->auditEnabled();
+        $notify = $this->fireEvents || $audit;
+
         $previous = [];
-        if ($this->shouldCaptureOld()) {
+        if ($notify) {
             $current = $this->all();
             foreach ($pairs as $name => $value) {
                 $previous[$name] = [
@@ -217,6 +220,10 @@ final class SettingStorage implements SettingStorageInterface
 
         SimpleSetting::upsert($rows, ['group', 'name'], ['val', 'type']);
 
+        if (!$notify) {
+            return;
+        }
+
         foreach ($pairs as $name => $value) {
             $existed = $previous[$name]['existed'] ?? false;
             $oldValue = $previous[$name]['oldValue'] ?? null;
@@ -225,7 +232,7 @@ final class SettingStorage implements SettingStorageInterface
                 event(new SettingSaved((string) $name, $value, $this->group, $oldValue, $existed));
             }
 
-            if ($this->auditEnabled()) {
+            if ($audit) {
                 $this->recordAudit((string) $name, $existed ? 'updated' : 'created', $oldValue, $value);
             }
         }

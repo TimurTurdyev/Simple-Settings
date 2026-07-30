@@ -12,8 +12,8 @@
 
 ## Требования
 
-- PHP 8.2+
-- Laravel 12.x
+- PHP 8.2, 8.3, 8.4 или 8.5
+- Laravel 12.x или 13.x
 
 ## Установка
 
@@ -99,7 +99,7 @@ Setting::set([
 ]);
 ```
 
-Кэш сбрасывается один раз после записи всех значений.
+Вся пачка уходит в БД одним upsert-запросом. Валидация идёт до записи: невалиден хоть один ключ, не сохранится ни один. Кэш сбрасывается один раз после записи всех значений.
 
 ## Обход кэша
 
@@ -320,7 +320,7 @@ PRIMARY KEY (group, name)
 
 Lightweight settings manager for Laravel with group namespacing, caching, and automatic type casting.
 
-**Requirements:** PHP 8.2+, Laravel 12.x
+**Requirements:** PHP 8.2+, Laravel 12 or 13
 
 **Install:**
 ```bash

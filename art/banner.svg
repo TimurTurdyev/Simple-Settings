@@ -88,27 +88,74 @@
     <circle cx="0" cy="0" r="24" fill="#0f172a"/>
   </g>
 
+  <!-- Settings table card (right side) -->
+  <g transform="translate(688, 156)">
+    <rect x="4" y="8" width="492" height="328" rx="18" fill="#000000" opacity="0.25"/>
+    <rect x="0" y="0" width="492" height="328" rx="18" fill="#111c31" stroke="#334155" stroke-width="1.5"/>
+    <!-- window chrome -->
+    <circle cx="30" cy="32" r="6" fill="#ef4444" opacity="0.75"/>
+    <circle cx="54" cy="32" r="6" fill="#f59e0b" opacity="0.75"/>
+    <circle cx="78" cy="32" r="6" fill="#22c55e" opacity="0.75"/>
+    <text x="462" y="37" text-anchor="end" font-family="'JetBrains Mono', 'Fira Code', monospace"
+          font-size="14" fill="#475569">simple_settings</text>
+    <line x1="0" y1="56" x2="492" y2="56" stroke="#1e293b" stroke-width="2"/>
+
+    <!-- rows: key / value / type chip -->
+    <g font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="16">
+      <text x="30" y="98"  fill="#a5b4fc">site_name</text>
+      <text x="220" y="98" fill="#e2e8f0">"My App"</text>
+      <rect x="386" y="82" width="76" height="24" rx="12" fill="#1e293b"/>
+      <text x="424" y="99" text-anchor="middle" font-size="12" fill="#64748b">string</text>
+
+      <text x="30" y="146"  fill="#a5b4fc">per_page</text>
+      <text x="220" y="146" fill="#e2e8f0">15</text>
+      <rect x="386" y="130" width="76" height="24" rx="12" fill="#1e293b"/>
+      <text x="424" y="147" text-anchor="middle" font-size="12" fill="#64748b">integer</text>
+
+      <text x="30" y="194"  fill="#a5b4fc">enabled</text>
+      <text x="220" y="194" fill="#c084fc">true</text>
+      <rect x="386" y="178" width="76" height="24" rx="12" fill="#1e293b"/>
+      <text x="424" y="195" text-anchor="middle" font-size="12" fill="#64748b">boolean</text>
+
+      <text x="30" y="242"  fill="#a5b4fc">price</text>
+      <text x="220" y="242" fill="#e2e8f0">9.99</text>
+      <rect x="386" y="226" width="76" height="24" rx="12" fill="#1e293b"/>
+      <text x="424" y="243" text-anchor="middle" font-size="12" fill="#64748b">float</text>
+
+      <text x="30" y="290"  fill="#a5b4fc">tags</text>
+      <text x="220" y="290" fill="#e2e8f0">["a","b"]</text>
+      <rect x="386" y="274" width="76" height="24" rx="12" fill="#1e293b"/>
+      <text x="424" y="291" text-anchor="middle" font-size="12" fill="#64748b">array</text>
+    </g>
+  </g>
+
+  <!-- audit trail hint under the card -->
+  <g transform="translate(800, 516)" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="14">
+    <circle cx="8" cy="-5" r="4" fill="#22c55e" opacity="0.8"/>
+    <text x="24" y="0" fill="#475569">audit: site_name · "My Site" → "My App"</text>
+  </g>
+
   <!-- Accent line top -->
   <rect x="0" y="0" width="1280" height="4" fill="url(#accent)"/>
 
   <!-- Laravel badge -->
   <g transform="translate(100, 110)">
-    <rect x="0" y="0" width="130" height="34" rx="17" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="0" y="0" width="158" height="34" rx="17" fill="#1e293b" stroke="#334155" stroke-width="1"/>
     <!-- Laravel flame icon -->
     <text x="16" y="23" font-family="monospace" font-size="16" fill="#f97316">▲</text>
     <text x="38" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
           font-size="13" font-weight="500" fill="#94a3b8">Laravel</text>
     <text x="95" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-          font-size="13" font-weight="600" fill="#64748b">12</text>
+          font-size="13" font-weight="600" fill="#64748b">12 · 13</text>
   </g>
 
   <!-- PHP badge -->
-  <g transform="translate(246, 110)">
-    <rect x="0" y="0" width="110" height="34" rx="17" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <g transform="translate(274, 110)">
+    <rect x="0" y="0" width="128" height="34" rx="17" fill="#1e293b" stroke="#334155" stroke-width="1"/>
     <text x="16" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
           font-size="13" font-weight="500" fill="#94a3b8">PHP</text>
     <text x="46" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-          font-size="13" font-weight="600" fill="#64748b">8.2+</text>
+          font-size="13" font-weight="600" fill="#64748b">8.2–8.5</text>
   </g>
 
   <!-- Main icon: gear -->
@@ -140,7 +187,7 @@
   <text x="100" y="515"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
         font-size="22" fill="#64748b" letter-spacing="0.3">
-    Менеджер настроек для Laravel · группы · кэш · типизация
+    Менеджер настроек для Laravel · группы · кэш · типизация · аудит
   </text>
 
   <!-- Composer package name -->

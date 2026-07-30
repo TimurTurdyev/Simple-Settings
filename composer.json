@@ -1,6 +1,6 @@
 {
     "name": "timurturdyev/simple-settings",
-    "description": "A simple package for storing settings in laravel",
+    "description": "Key-value settings for Laravel: groups, caching, typed values, atomic batch writes and an optional audit log",
     "type": "library",
     "license": "MIT",
     "authors": [

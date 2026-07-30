@@ -6,9 +6,9 @@ namespace TimurTurdyev\SimpleSettings\Tests;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use TimurTurdyev\SimpleSettings\Events\SettingDeleted;
-use TimurTurdyev\SimpleSettings\Events\SettingRetrieved;
 use TimurTurdyev\SimpleSettings\Events\SettingSaved;
 use TimurTurdyev\SimpleSettings\Events\SettingsFlushed;
 use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
@@ -242,7 +242,6 @@ class SettingStorageTest extends TestCase
         $storage->remove('key');
 
         Event::assertNotDispatched(SettingSaved::class);
-        Event::assertNotDispatched(SettingRetrieved::class);
         Event::assertNotDispatched(SettingDeleted::class);
     }
 
@@ -256,7 +255,6 @@ class SettingStorageTest extends TestCase
         $storage->remove('key');
 
         Event::assertDispatched(SettingSaved::class, fn($e) => $e->key === 'key' && $e->group === 'test');
-        Event::assertDispatched(SettingRetrieved::class, fn($e) => $e->key === 'key' && $e->group === 'test');
         Event::assertDispatched(SettingDeleted::class, fn($e) => $e->key === 'key' && $e->group === 'test');
     }
 
@@ -270,7 +268,6 @@ class SettingStorageTest extends TestCase
         $storage->remove('key');
 
         Event::assertNotDispatched(SettingSaved::class);
-        Event::assertNotDispatched(SettingRetrieved::class);
         Event::assertNotDispatched(SettingDeleted::class);
     }
 
@@ -494,7 +491,7 @@ class SettingStorageTest extends TestCase
             $this->assertStringContainsString('per_page', $e->getMessage());
         }
 
-        $this->assertEquals('Valid', $storage->get('app_name', null, true));
+        $this->assertNull($storage->get('app_name', null, true));
         $this->assertNull($storage->get('per_page', null, true));
         $this->assertNull($storage->get('site_url', null, true));
     }
@@ -597,5 +594,59 @@ class SettingStorageTest extends TestCase
 
         $this->assertInstanceOf(Collection::class, $result);
         $this->assertEquals('value', $result->get('key'));
+    }
+
+    public function test_removing_missing_key_dispatches_no_events(): void
+    {
+        Event::fake();
+
+        $storage = (new SettingStorage('test'))->withEvents();
+
+        $this->assertEquals(0, $storage->remove('missing'));
+        $this->assertEquals(0, $storage->removeAll());
+
+        Event::assertNotDispatched(SettingDeleted::class);
+        Event::assertNotDispatched(SettingsFlushed::class);
+    }
+
+    public function test_bulk_set_performs_single_insert_query(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $inserts = [];
+        DB::listen(function ($query) use (&$inserts) {
+            if (str_starts_with(strtolower($query->sql), 'insert')) {
+                $inserts[] = $query->sql;
+            }
+        });
+
+        $storage->set([
+            'a' => 1,
+            'b' => 'two',
+            'c' => true,
+            'd' => ['x' => 1],
+        ]);
+
+        $this->assertCount(1, $inserts);
+        $this->assertEquals(1, $storage->get('a', null, true));
+        $this->assertEquals(['x' => 1], $storage->get('d', null, true));
+    }
+
+    public function test_saved_event_carries_old_value_and_existed_without_audit(): void
+    {
+        Event::fake([SettingSaved::class]);
+
+        $storage = (new SettingStorage('test'))->withEvents();
+        $storage->set('key', 'first');
+        $storage->set('key', 'second');
+
+        Event::assertDispatched(
+            SettingSaved::class,
+            fn($e) => $e->key === 'key' && $e->value === 'first' && $e->oldValue === null && $e->existed === false
+        );
+        Event::assertDispatched(
+            SettingSaved::class,
+            fn($e) => $e->key === 'key' && $e->value === 'second' && $e->oldValue === 'first' && $e->existed === true
+        );
     }
 }

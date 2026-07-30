@@ -137,13 +137,33 @@ class AuditLogTest extends TestCase
         $this->assertNull($change->causer_id);
     }
 
-    public function test_without_events_bypasses_audit(): void
+    public function test_without_events_still_records_audit(): void
     {
         $storage = (new SettingStorage('test'))->withoutEvents();
 
         $storage->set('key', 'value');
         $storage->remove('key');
 
+        $this->assertEquals(2, SimpleSettingChange::query()->count());
+        $this->assertEquals(1, SimpleSettingChange::query()->event('created')->count());
+        $this->assertEquals(1, SimpleSettingChange::query()->event('deleted')->count());
+    }
+
+    public function test_audit_records_when_events_disabled_in_config(): void
+    {
+        config(['simple-settings.events' => false]);
+
+        $storage = new SettingStorage('test');
+        $storage->set('key', 'value');
+
+        $this->assertEquals(1, SimpleSettingChange::query()->event('created')->count());
+    }
+
+    public function test_removing_missing_key_writes_no_audit_row(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $this->assertEquals(0, $storage->remove('missing'));
         $this->assertEquals(0, SimpleSettingChange::query()->count());
     }
 

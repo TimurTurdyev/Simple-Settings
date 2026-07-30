@@ -162,7 +162,6 @@ php artisan setting:import backup.json --replace       # сначала очис
 **Через метод** (точечно для конкретного вызова):
 ```php
 Setting::withEvents()->set('key', 'value');
-Setting::withEvents()->get('key');
 Setting::withEvents()->remove('key');
 
 // Отключить явно, даже если в конфиге включено:
@@ -176,12 +175,11 @@ Setting::forGroup('email')->withEvents()->set('host', 'smtp.example.com');
 
 | Событие | Когда срабатывает | Поля payload |
 |---------|------------------|--------------|
-| `SettingRetrieved` | при вызове `get()` | `key`, `value`, `group` |
 | `SettingSaved` | при записи через `set()` | `key`, `value`, `group`, `oldValue`, `existed` |
 | `SettingDeleted` | при удалении конкретного ключа через `remove()` | `key`, `group`, `oldValue` |
 | `SettingsFlushed` | при `removeAll()` (очистка всей группы) | `group` |
 
-`oldValue` и `existed` в `SettingSaved` имеют смысл только когда включён активити-лог (см. ниже) — без него старое значение не читается, и в событие летят `null` / `false`. Это сделано, чтобы лишний `SELECT` перед записью выполнялся только когда он реально нужен.
+При включённых событиях `oldValue` и `existed` заполнены всегда (значение берётся из кеша). Пустое удаление (нет ключа, пустая группа) событий не даёт.
 
 ```php
 use TimurTurdyev\SimpleSettings\Events\SettingSaved;
@@ -189,7 +187,7 @@ use Illuminate\Support\Facades\Event;
 
 Event::listen(SettingSaved::class, function (SettingSaved $event) {
     // $event->key, $event->value, $event->group
-    // $event->oldValue, $event->existed (заполнены, только если audit включён)
+    // $event->oldValue, $event->existed
 });
 ```
 
@@ -211,18 +209,17 @@ Event::listen(SettingSaved::class, function (SettingSaved $event) {
 
 Опциональное логирование изменений настроек в отдельную таблицу `simple_setting_changes`. Без сторонних пакетов — своя модель + listener + миграция (которая накатывается автоматически при `php artisan migrate`).
 
-**Включение:** требуются включённые события + включённый аудит:
+**Включение:** хватает одного флага, события логу не нужны:
 
 ```php
 // config/simple-settings.php
-'events' => true,
 'audit' => [
     'enabled' => true,
     'table'   => 'simple_setting_changes', // имя таблицы можно переопределить
 ],
 ```
 
-Когда оба флага включены, перед каждым `set()` / `remove()` библиотека читает текущее значение (через кеш — лишних запросов обычно нет) и записывает его в `old_payload`, новое — в `new_payload`. Causer берётся из `auth()->user()` — для CLI/queue остаётся `null`.
+Библиотека читает текущее значение из кеша, кладёт его в `old_payload`, новое в `new_payload`. Causer берётся из `auth()->user()`, в CLI/queue будет `null`.
 
 **Чтение истории:**
 
@@ -250,7 +247,7 @@ SimpleSettingChange::query()
 
 **Известные ограничения:**
 - `removeAll()` НЕ создаёт записей в активити-логе (он бесшумный по умолчанию). Для аудита очистки группы — слушайте `SettingsFlushed` событие самостоятельно или удаляйте ключи через `remove($key)` явно.
-- `withoutEvents()` отключает и события, и активити-лог (логично — лог построен поверх событий). Удобно для bulk-сидов.
+- `withoutEvents()` глушит только события, лог продолжает писаться. Выключить его можно лишь через `audit.enabled`.
 
 ## Конфигурация
 
@@ -309,6 +306,14 @@ PRIMARY KEY (group, name)
 
 Простой key-value для настроек приложения. Не нужно описывать PHP-класс под каждую группу настроек и не нужна миграция на каждый новый ключ — всё хранится в одной таблице `simple_settings`, дубликаты исключены составным первичным ключом `(group, name)`. Тип значения (`string`, `int`, `float`, `bool`, `array`, `null`) сохраняется и восстанавливается автоматически. Из зависимостей — только `illuminate/database` и `illuminate/support`.
 
+## Обновление до v6
+
+- Событие `SettingRetrieved` удалено.
+- Активити-логу хватает `audit.enabled`, флаг `events` ему не нужен. Он же единственный выключатель: `withoutEvents()` на лог не влияет.
+- При включённых событиях `oldValue` и `existed` заполнены всегда, аудит тут ни при чём.
+- Пустые удаления (нет ключа, пустая группа) не дают ни событий, ни строк в логе.
+- `set([...])` пишет пачку одним запросом. Валидация идёт до записи: упала на одном ключе, не сохранился ни один (в v5 часть успевала записаться).
+
 ---
 
 ## English
@@ -344,7 +349,7 @@ Types (`integer`, `float`, `boolean`, `array`, `null`) are detected and restored
 
 ### Activity log (optional)
 
-Opt-in change history written to a separate `simple_setting_changes` table. No external packages — just a model, a listener, and a migration that runs as part of `php artisan migrate`. Enable both `events` and `audit.enabled` in the config; once active, every `set()` / `remove()` records `old_payload`, `new_payload`, and the causer (`auth()->user()`).
+Change history in a separate `simple_setting_changes` table. Enable `audit.enabled` in the config, events are not required. Every `set()` / `remove()` records old and new payload plus the causer. `withoutEvents()` does not affect the log.
 
 ```php
 use TimurTurdyev\SimpleSettings\Models\SimpleSettingChange;
@@ -364,7 +369,7 @@ SimpleSettingChange::query()
 
 ### Events
 
-`SettingRetrieved`, `SettingSaved`, `SettingDeleted`, `SettingsFlushed`. Disabled by default; enable globally via the `events` config key or per-call via `Setting::withEvents()`. `SettingSaved` carries `oldValue` and `existed` only when the audit log is on.
+`SettingSaved`, `SettingDeleted`, `SettingsFlushed`. Disabled by default; enable via the `events` config key or `Setting::withEvents()`. `SettingSaved` carries `oldValue` and `existed` whenever events are on. No-op deletes dispatch nothing.
 
 ### Highlights
 

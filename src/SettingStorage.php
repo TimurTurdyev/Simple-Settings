@@ -129,7 +129,9 @@ final class SettingStorage implements SettingStorageInterface
         }
 
         if ($this->auditEnabled()) {
-            $this->recordAudit($key, 'deleted', $oldValue, null);
+            $this->recordAudits([
+                ['key' => $key, 'event' => 'deleted', 'old' => $oldValue, 'new' => null],
+            ]);
         }
 
         $this->flushCache();
@@ -224,6 +226,8 @@ final class SettingStorage implements SettingStorageInterface
             return;
         }
 
+        $auditEntries = [];
+
         foreach ($pairs as $name => $value) {
             $existed = $previous[$name]['existed'] ?? false;
             $oldValue = $previous[$name]['oldValue'] ?? null;
@@ -233,9 +237,16 @@ final class SettingStorage implements SettingStorageInterface
             }
 
             if ($audit) {
-                $this->recordAudit((string) $name, $existed ? 'updated' : 'created', $oldValue, $value);
+                $auditEntries[] = [
+                    'key'   => (string) $name,
+                    'event' => $existed ? 'updated' : 'created',
+                    'old'   => $oldValue,
+                    'new'   => $value,
+                ];
             }
         }
+
+        $this->recordAudits($auditEntries);
     }
 
     private function auditEnabled(): bool
@@ -243,17 +254,36 @@ final class SettingStorage implements SettingStorageInterface
         return (bool) config('simple-settings.audit.enabled', false);
     }
 
-    private function recordAudit(string $key, string $event, mixed $oldValue, mixed $newValue): void
+    /**
+     * Bulk insert bypasses the model, so the 'array' cast and created_at
+     * are reproduced by hand: null stays NULL, everything else is JSON.
+     *
+     * @param array<int, array{key: string, event: string, old: mixed, new: mixed}> $entries
+     */
+    private function recordAudits(array $entries): void
     {
-        SimpleSettingChange::create([
-            'group'       => $this->group,
-            'name'        => $key,
-            'event'       => $event,
-            'old_payload' => $oldValue,
-            'new_payload' => $newValue,
-            'causer_type' => auth()->user()?->getMorphClass(),
-            'causer_id'   => auth()->user()?->getKey(),
-        ]);
+        if ($entries === []) {
+            return;
+        }
+
+        $causer = auth()->user();
+        $now = now();
+
+        $rows = [];
+        foreach ($entries as $entry) {
+            $rows[] = [
+                'group'       => $this->group,
+                'name'        => $entry['key'],
+                'event'       => $entry['event'],
+                'old_payload' => $entry['old'] === null ? null : json_encode($entry['old']),
+                'new_payload' => $entry['new'] === null ? null : json_encode($entry['new']),
+                'causer_type' => $causer?->getMorphClass(),
+                'causer_id'   => $causer?->getKey(),
+                'created_at'  => $now,
+            ];
+        }
+
+        SimpleSettingChange::query()->insert($rows);
     }
 
     private function captureOldValue(string $key): mixed

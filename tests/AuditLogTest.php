@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace TimurTurdyev\SimpleSettings\Tests;
 
 use Illuminate\Foundation\Auth\User as AuthUser;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use TimurTurdyev\SimpleSettings\Models\SimpleSetting;
 use TimurTurdyev\SimpleSettings\Models\SimpleSettingChange;
@@ -165,6 +166,25 @@ class AuditLogTest extends TestCase
 
         $this->assertEquals(0, $storage->remove('missing'));
         $this->assertEquals(0, SimpleSettingChange::query()->count());
+    }
+
+    public function test_bulk_set_writes_audit_in_single_insert(): void
+    {
+        $storage = new SettingStorage('test');
+
+        $inserts = [];
+        DB::listen(function ($query) use (&$inserts) {
+            $sql = strtolower($query->sql);
+            if (str_starts_with($sql, 'insert') && str_contains($sql, 'simple_setting_changes')) {
+                $inserts[] = $query->sql;
+            }
+        });
+
+        $storage->set(['a' => 1, 'b' => 'two', 'c' => ['x' => 1]]);
+
+        $this->assertCount(1, $inserts);
+        $this->assertEquals(3, SimpleSettingChange::query()->event('created')->count());
+        $this->assertEquals(['x' => 1], SimpleSettingChange::query()->where('name', 'c')->first()->new_payload);
     }
 
     public function test_for_setting_scope_filters_changes(): void

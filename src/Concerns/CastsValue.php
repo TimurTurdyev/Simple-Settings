@@ -10,10 +10,18 @@ trait CastsValue
      * PHP's gettype() returns 'double'; the package stores 'float'.
      * Reading must keep accepting 'double' forever: rows written by old
      * versions and setting:export files may still carry it.
+     *
+     * The trim() is required, not cosmetic: the type column was historically
+     * char(20), and PostgreSQL (bpchar) returns such values padded with
+     * trailing spaces — 'array               '. MySQL strips them on select,
+     * PostgreSQL does not, so without trim() every value falls through to the
+     * default branch and is read back as a string. The column is varchar now,
+     * but installs created before that migration still have char, and export
+     * files written from them carry the padding too.
      */
     public static function normalizeType(string $type): string
     {
-        $type = strtolower($type);
+        $type = strtolower(trim($type));
 
         return $type === 'double' ? 'float' : $type;
     }

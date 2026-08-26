@@ -376,6 +376,22 @@ class SettingStorageTest extends TestCase
         $this->assertIsFloat($storage->get('old_rate'));
     }
 
+    public function test_padded_type_from_char_column_is_read_correctly(): void
+    {
+        // PostgreSQL returns char(20) padded with trailing spaces.
+        SimpleSetting::create([
+            'group' => 'test',
+            'name' => 'requisites',
+            'val' => '{"inn":"123"}',
+            'type' => str_pad('array', 20),
+        ]);
+
+        $storage = new SettingStorage('test');
+
+        $this->assertIsArray($storage->get('requisites'));
+        $this->assertSame(['inn' => '123'], $storage->get('requisites'));
+    }
+
     public function test_for_group_inherits_events_state(): void
     {
         Event::fake();

@@ -14,7 +14,7 @@ return new class extends Migration {
                 $table->string('group');
                 $table->string('name');
                 $table->text('val');
-                $table->char('type', 20)->default('string');
+                $table->string('type', 20)->default('string');
                 $table->timestamps();
                 $table->primary(['group', 'name']);
             });

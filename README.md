@@ -277,7 +277,7 @@ simple_settings
 ├── group       string
 ├── name        string
 ├── val         text
-├── type        char(20)
+├── type        string(20)
 ├── created_at
 └── updated_at
 
